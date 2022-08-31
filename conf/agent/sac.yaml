@@ -1,0 +1,9 @@
+name: SoftActorCritic
+hps:
+  n_step: 1
+  beta: 0.2
+  replay_capacity: 100000 # from CARL, original uses 1000000
+  warmup_steps: 100 # for filling the replay buffer. warmup_steps >= batch_size
+  exploration_steps: 0 # during this time, use a random (uniform) policy but already learn the true policy.
+  batch_size: 32 # 256 # from repro
+  target_smoothing: 0.005 # τ for ema of Q

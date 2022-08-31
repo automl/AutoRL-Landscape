@@ -1,0 +1,6 @@
+defaults:
+  - env: hopper
+  - agent: sac
+
+# seed for agents and environments
+seed: 42

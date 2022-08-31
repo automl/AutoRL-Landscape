@@ -1,6 +1,6 @@
 import pytest
 
-from <<package-name>>.myfile import MyClass
+from autorl_landscape.myfile import MyClass
 
 
 def test_oreos():
