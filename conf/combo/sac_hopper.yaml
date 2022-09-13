@@ -1,0 +1,17 @@
+# @package _global_
+
+# defaults:
+#   - agent: sac
+#   - env: hopper
+
+agent:
+  name: SAC
+  hps:
+    policy: 'MlpPolicy'
+    use_sde: False
+    learning_starts: 10000
+env:
+  name: Hopper-v3
+  total_timesteps: 1000000
+  eval_freq: 1000
+  n_eval_episodes: 5

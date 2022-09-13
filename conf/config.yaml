@@ -1,6 +1,19 @@
 defaults:
-  - env: hopper
-  - agent: sac
+  - combo: testing
+  # - override hydra/launcher: submitit_slurm
+  - _self_
 
 # seed for agents and environments
-seed: 42
+seeds:
+  - 166
+  - 167
+  - 168
+cs:
+  seed: 123
+  num_samples: 4
+  use_zoo_optimal_ls: False # don't sample from config space
+
+# hydra:
+#   sweeper:
+#     params:
+#       combo: glob(*)

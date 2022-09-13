@@ -1,0 +1,7 @@
+# https://www.gymlibrary.dev/environments/classic_control/cart_pole/
+# S: (4,) float
+# A: (1,) binary
+name: CartPole-v1
+total_timesteps: 100000
+eval_freq: 1000
+n_eval_episodes: 5

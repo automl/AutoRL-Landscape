@@ -9,80 +9,23 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import sync_envs_normalization
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv
 
+from autorl_landscape.util.comparator import Comparator
 
-class LandscapeEval(BaseCallback):
+
+class LandscapeEvalCallback(EvalCallback):
     """
-    A custom callback that derives from ``BaseCallback``.
-
-    :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
+    Like EvalCallback, but also saves evaluation and model at a special (landscape eval) timestep to a custom logging
+    output.
     """
-
-    def __init__(
-        self,
-        after: int,
-        save_path: str,
-        verbose: int = 0,
-    ):
-        """
-        :param after: number of steps to train before saving the landscape
-        :param save_path: Folder where the agent is saved, something like
-            phase_results/{combo}/{timedate}/phase_{i}/agents/{run.id}
-        """
-        super(LandscapeEval, self).__init__(verbose)
-        self.after = after
-        self.save_path = save_path
-        self.done = False
-        # Convert to VecEnv for consistency
-
-    def _init_callback(self) -> None:
-        os.makedirs(self.save_path, exist_ok=True)
-        return
-
-    def _on_training_start(self) -> None:
-        """This method is called before the first rollout starts."""
-        pass
-
-    def _on_rollout_start(self) -> None:
-        """
-        A rollout is the collection of environment interaction
-        using the current policy.
-        This event is triggered before collecting new samples.
-        """
-        pass
-
-    def _on_step(self) -> bool:
-        """
-        This method will be called by the model after each call to `env.step()`.
-
-        For child callback (of an `EventCallback`), this will be called
-        when the event is triggered.
-
-        :return: (bool) If the callback returns False, training is aborted early.
-        """
-        if not self.done and self.n_calls >= self.after:
-            # save model (landscape save)
-            self.done = True
-            self.model.save(self.save_path)
-            if self.verbose > 1:
-                print(f"Saving model checkpoint to {self.save_path}")
-        return True
-
-    def _on_rollout_end(self) -> None:
-        """This event is triggered before updating the policy."""
-        pass
-
-    def _on_training_end(self) -> None:
-        """This event is triggered before exiting the `learn()` method."""
-        pass
-
-
-class CustomEvalCallback(EvalCallback):
-    """Like EvalCallback, but also saves evaluation at a special (landscape eval) timestep to a custom logging output"""
 
     def __init__(
         self,
         eval_env: Union[gym.Env, VecEnv],
         t_ls: int,
+        ls_model_save_path: str,
+        comp: Comparator,
+        conf_idx: int,
+        run_id: str,
         callback_on_new_best: Optional[BaseCallback] = None,
         callback_after_eval: Optional[BaseCallback] = None,
         n_eval_episodes: int = 5,
@@ -108,13 +51,37 @@ class CustomEvalCallback(EvalCallback):
             warn,
         )
         self.t_ls = t_ls
-        self.done_ls = False
+        self.done_ls_eval = False  # set to true after ls_eval
         self.best_mean_reward: float
+        self.ls_model_save_path = ls_model_save_path
+        self.comp = comp
+        self.conf_idx = conf_idx
+        self.run_id = run_id
 
     def _on_step(self) -> bool:
+        ls_eval = not self.done_ls_eval and self.n_calls >= self.t_ls
+        freq_eval = self.eval_freq > 0 and self.n_calls % self.eval_freq == 0
+
+        return self._evaluate(ls_eval=ls_eval, freq_eval=freq_eval, final_eval=False)
+
+    def _on_training_end(self) -> None:
+        self._evaluate(ls_eval=False, freq_eval=False, final_eval=True)
+
+    def _evaluate(self, ls_eval: bool, freq_eval: bool, final_eval: bool) -> bool:
+        """
+        Evaluate the policy (that is trained on some configuration with a seed).
+
+        :param ls_eval: Write eval output to ls_eval/mean_{reward,ep_length}.
+        :param freq_eval: Write eval output to eval/mean_{reward,ep_length}, also optionally keep track of evaluations
+        by writing to the log_path if it is set. Also keep track of last_mean_reward, success_buffer (?) and best model.
+        :param final_eval: Write eval output to final_eval/mean_{reward,ep_length}.
+        """
         continue_training = True
 
-        if self.eval_freq > 0 and self.n_calls % self.eval_freq == 0:
+        if freq_eval or ls_eval or final_eval:
+            # Only do landscape eval once
+            if ls_eval:
+                self.done_ls_eval = True
 
             # Sync training and eval env if there is VecNormalize
             if self.model.get_vec_normalize_env() is not None:
@@ -141,7 +108,7 @@ class CustomEvalCallback(EvalCallback):
                 callback=self._log_success_callback,
             )
 
-            if self.log_path is not None:
+            if freq_eval and self.log_path is not None:
                 self.evaluations_timesteps.append(self.num_timesteps)
                 self.evaluations_results.append(episode_rewards)
                 self.evaluations_length.append(episode_lengths)
@@ -162,7 +129,8 @@ class CustomEvalCallback(EvalCallback):
 
             mean_reward, std_reward = float(np.mean(episode_rewards)), float(np.std(episode_rewards))
             mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
-            self.last_mean_reward = mean_reward
+            if freq_eval:
+                self.last_mean_reward = mean_reward
 
             if self.verbose > 0:
                 print(
@@ -170,11 +138,19 @@ class CustomEvalCallback(EvalCallback):
                     f"episode_reward={mean_reward:.2f} +/- {std_reward:.2f}"
                 )
                 print(f"Episode length: {mean_ep_length:.2f} +/- {std_ep_length:.2f}")
-            # Add to current Logger
-            self.logger.record("eval/mean_reward", float(mean_reward))
-            self.logger.record("eval/mean_ep_length", mean_ep_length)
 
-            if len(self._is_success_buffer) > 0:
+            # Add to current Logger
+            if freq_eval:
+                self.logger.record("eval/mean_reward", float(mean_reward))
+                self.logger.record("eval/mean_ep_length", mean_ep_length)
+            if ls_eval:
+                self.logger.record("ls_eval/mean_reward", float(mean_reward))
+                self.logger.record("ls_eval/mean_ep_length", mean_ep_length)
+            if final_eval:
+                self.logger.record("final_eval/mean_reward", float(mean_reward))
+                self.logger.record("final_eval/mean_ep_length", mean_ep_length)
+
+            if freq_eval and len(self._is_success_buffer) > 0:
                 success_rate = np.mean(self._is_success_buffer)
                 if self.verbose > 0:
                     print(f"Success rate: {100 * success_rate:.2f}%")
@@ -184,7 +160,7 @@ class CustomEvalCallback(EvalCallback):
             self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
             self.logger.dump(self.num_timesteps)
 
-            if mean_reward > self.best_mean_reward:
+            if freq_eval and mean_reward > self.best_mean_reward:
                 if self.verbose > 0:
                     print("New best mean reward!")
                 if self.best_model_save_path is not None:
@@ -193,6 +169,17 @@ class CustomEvalCallback(EvalCallback):
                 # Trigger callback on new best model, if needed
                 if self.callback_on_new_best is not None:
                     continue_training = self.callback_on_new_best.on_step()
+
+            if ls_eval:
+                if self.verbose > 0:
+                    print(f"Saving model checkpoint to {self.ls_model_save_path}")
+                self.model.save(self.ls_model_save_path)
+
+            if final_eval:
+                # if self.verbose > 0:
+                #     print(f"Saving model checkpoint to {self.ls_model_save_path}")
+                # self.model.save(self.ls_model_save_path)
+                self.comp.record(self.conf_idx, self.run_id, mean_reward)
 
             # Trigger callback after every evaluation, if needed
             if self.callback is not None:

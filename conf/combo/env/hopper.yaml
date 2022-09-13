@@ -1,0 +1,7 @@
+# https://www.gymlibrary.dev/environments/mujoco/hopper/
+# S: (11,) float
+# A: (3,) float
+name: Hopper-v3
+total_timesteps: 500000
+eval_freq: 1000
+n_eval_episodes: 5

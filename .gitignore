@@ -136,3 +136,10 @@ dmypy.json
 
 # wandb
 /wandb
+
+# idk
+/logs
+/models
+/multirun
+/runs
+# /phase_results

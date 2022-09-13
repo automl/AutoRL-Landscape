@@ -1,4 +1,4 @@
-name: SoftActorCritic
+name: SAC
 hps:
   n_step: 1
   beta: 0.2
