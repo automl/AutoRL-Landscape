@@ -7,10 +7,10 @@ defaults:
 seeds:
   - 166
   - 167
-  - 168
+  # - 168
 cs:
   seed: 123
-  num_samples: 4
+  num_samples: 2
   use_zoo_optimal_ls: False # don't sample from config space
 
 # hydra:

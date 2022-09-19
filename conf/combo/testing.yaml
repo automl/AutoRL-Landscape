@@ -20,7 +20,7 @@ agent:
 env:
   name: CartPole-v1
   total_timesteps: 3000
-  eval_freq: 100
-  n_eval_episodes: 5
+  eval_freq: 500
+  n_eval_episodes: 10
 phases:
   - 2000

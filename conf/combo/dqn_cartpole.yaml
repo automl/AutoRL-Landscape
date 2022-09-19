@@ -19,5 +19,5 @@ agent:
 env:
   name: CartPole-v1
   total_timesteps: 100000
-  eval_freq: 1000
-  n_eval_episodes: 5
+  eval_freq: 5000
+  n_eval_episodes: 10
