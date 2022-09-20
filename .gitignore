@@ -142,4 +142,5 @@ dmypy.json
 /models
 /multirun
 /runs
-# /phase_results
+/phase_results
+Session.vim

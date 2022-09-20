@@ -1,0 +1,32 @@
+# @package _global_
+
+ls:
+  seed: 123 # landscape sampler rng
+  num_samples: 2 # how many samples in the landscape
+  use_zoo_optimal_ls: False # if true, don't sample from config space but just use the best conf from zoo
+  dims:
+    - nn_width:
+        type: Categorical
+        items:
+          - 16
+          - 32
+          - 64
+          - 128
+          - 256
+    - nn_length:
+        type: Categorical
+        items:
+          - 2
+          - 3
+          - 4
+          - 5
+    - learning_rate:
+        type: Float
+        log: True
+        lower: 0.0001
+        upper: 0.1
+    - neg_gamma:
+        type: Float
+        log: True
+        lower: 0.0001
+        upper: 0.8
