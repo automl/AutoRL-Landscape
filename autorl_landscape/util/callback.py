@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Union
 
 import gym
 import numpy as np
@@ -46,19 +46,17 @@ class LandscapeEvalCallback(EvalCallback):
         self.ls_model_save_path = ls_model_save_path
         self.conf_idx = conf_idx
         self.run = run
-        self.final_mean_return = -1.0  # TODO this is a hardcoded metric to be used for choosing best conf and seed
 
         # histogram bounds:
         self.max_return = conf.viz.max_return
         self.max_ep_length = conf.viz.max_ep_length
-        self.hist_bins = conf.viz.hist_bins
+        self.hist_bins = conf.viz.hist_bins + 1  # internally used for np.linspace, so one more is needed
 
         # final eval save data:
-        self.final_returns: List[np.ndarray] = []
-        self.final_ep_lengths: List[np.ndarray] = []
+        self.all_final_returns = np.array([])
+        self.all_final_ep_lengths = np.array([])
 
         # special eval config:
-        # TODO actually use these
         self.ls_eval_episodes = conf.eval.ls_eval_episodes
         self.final_eval_episodes = conf.eval.final_eval_episodes
         self.t_final_evals = np.linspace(
@@ -115,12 +113,19 @@ class LandscapeEvalCallback(EvalCallback):
                         "and warning above."
                     ) from e
 
+            # evals can overlap
+            eval_episodes = max(
+                self.n_eval_episodes * freq_eval,
+                self.ls_eval_episodes * ls_eval,
+                self.final_eval_episodes * final_eval,
+            )
+
             # returns and ep_lengths of n_eval_episodes evaluation rollouts/episodes
             self.eval_env.seed(self.eval_seed)
             returns, ep_lengths = evaluate_policy(
                 self.model,
                 self.eval_env,
-                n_eval_episodes=self.n_eval_episodes,
+                n_eval_episodes=eval_episodes,
                 render=self.render,
                 deterministic=self.deterministic,
                 return_episode_rewards=True,
@@ -129,44 +134,44 @@ class LandscapeEvalCallback(EvalCallback):
             )
             returns = np.array(returns)
             ep_lengths = np.array(ep_lengths)
+
+            # each eval gets its own view of the full data
+            freq_returns = returns[: self.n_eval_episodes]
+            freq_ep_lengths = ep_lengths[: self.n_eval_episodes]
+            ls_returns = returns[: self.ls_eval_episodes]
+            ls_ep_lengths = ep_lengths[: self.ls_eval_episodes]
+            final_returns = returns[: self.final_eval_episodes]
+            final_ep_lengths = ep_lengths[: self.final_eval_episodes]
+
             if final_eval:
-                self.final_returns.append(returns)
-                self.final_ep_lengths.append(ep_lengths)
-
-            mean_return, std_return = float(np.mean(returns)), float(np.std(returns))
-            mean_ep_length, std_ep_length = np.mean(ep_lengths), np.std(ep_lengths)
-            if freq_eval:
-                self.last_mean_return = mean_return
-
-            if self.verbose > 0:
-                print(
-                    f"Eval num_timesteps={self.num_timesteps}, "
-                    f"episode_return={mean_return:.2f} +/- {std_return:.2f}"
-                )
-                print(f"Episode length: {mean_ep_length:.2f} +/- {std_ep_length:.2f}")
+                self.all_final_returns = np.append(self.all_final_returns, final_returns)
+                self.all_final_ep_lengths = np.append(self.all_final_ep_lengths, final_ep_lengths)
 
             # Add to current Logger
             # self.logger.record: logs time-dependent values to line plots
             # self.run.summary: logs just once for a run
             # self.run.log: logs histograms of return data for better visualization
             if freq_eval:
-                self.logger.record("eval/mean_return", float(mean_return))
-                self.logger.record("eval/mean_ep_length", mean_ep_length)
+                self.logger.record("freq_eval/mean_return", float(np.mean(freq_returns)))
+                self.logger.record("freq_eval/mean_ep_length", np.mean(freq_ep_lengths))
             if ls_eval:
-                self.run.summary["ls_eval/returns"] = returns
-                self.run.summary["ls_eval/ep_lengths"] = ep_lengths
-                return_hist = np.histogram(returns, bins=np.linspace(0, self.max_return, self.hist_bins + 1))
-                ep_length_hist = np.histogram(ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins))
+                self.run.summary["ls_eval/returns"] = ls_returns
+                self.run.summary["ls_eval/ep_lengths"] = ls_ep_lengths
+                return_hist = np.histogram(ls_returns, bins=np.linspace(0, self.max_return, self.hist_bins))
+                ep_length_hist = np.histogram(ls_ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins))
                 self.run.log({"ls_eval/return_hist": wandb.Histogram(np_histogram=return_hist)})
                 self.run.log({"ls_eval/ep_length_hist": wandb.Histogram(np_histogram=ep_length_hist)})
             if final_final:
                 # combine all final evals and log together
-                final_returns = np.stack(self.final_returns)
-                final_ep_lengths = np.stack(self.final_ep_lengths)
-                self.run.summary["final_eval/returns"] = final_returns
-                self.run.summary["final_eval/ep_lengths"] = final_ep_lengths
-                return_hist = np.histogram(final_returns, bins=np.linspace(0, self.max_return, self.hist_bins + 1))
-                ep_length_hist = np.histogram(final_ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins))
+                shape = (len(self.t_final_evals), -1)
+                self.all_final_returns = np.reshape(self.all_final_returns, shape)
+                self.all_final_ep_lengths = np.reshape(self.all_final_ep_lengths, shape)
+                self.run.summary["final_eval/returns"] = self.all_final_returns
+                self.run.summary["final_eval/ep_lengths"] = self.all_final_ep_lengths
+                return_hist = np.histogram(self.all_final_returns, bins=np.linspace(0, self.max_return, self.hist_bins))
+                ep_length_hist = np.histogram(
+                    self.all_final_ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins)
+                )
                 self.run.log({"final_eval/return_hist": wandb.Histogram(np_histogram=return_hist)})
                 self.run.log({"final_eval/ep_length_hist": wandb.Histogram(np_histogram=ep_length_hist)})
 
@@ -179,8 +184,5 @@ class LandscapeEvalCallback(EvalCallback):
                 if self.verbose > 0:
                     print(f"Saving model checkpoint to {self.ls_model_save_path}")
                 self.model.save(self.ls_model_save_path)
-
-            if final_eval:
-                self.final_mean_return = mean_return
 
         return
