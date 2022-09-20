@@ -1,10 +1,10 @@
-from typing import List, Optional, Union
+from typing import List, Union
 
 import gym
 import numpy as np
 import wandb
 from omegaconf import DictConfig
-from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
+from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import sync_envs_normalization
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv
@@ -26,35 +26,20 @@ class LandscapeEvalCallback(EvalCallback):
         ls_model_save_path: str,
         conf_idx: int,
         run: Union[Run, RunDisabled],
-        # max_return: float,
-        # max_ep_length: int,
-        # freq_eval_interval: int,
-        # freq_eval_episodes: int,
-        # ls_eval_episodes: int,
-        # final_eval_episodes: int,
-        # final_eval_start: float,
-        # final_eval_times: int,
-        # total_timesteps: int,
-        callback_on_new_best: Optional[BaseCallback] = None,
-        callback_after_eval: Optional[BaseCallback] = None,
-        # log_path: Optional[str] = None,
-        deterministic: bool = True,
-        render: bool = False,
         verbose: int = 1,
-        warn: bool = True,
     ):
         super().__init__(
             eval_env,
-            callback_on_new_best,
-            callback_after_eval,
+            None,
+            None,
             conf.eval.freq_eval_episodes,
             conf.eval.freq_eval_interval,
             None,
             None,
-            deterministic,
-            render,
-            verbose,
-            warn,
+            deterministic=True,
+            render=False,
+            verbose=verbose,
+            warn=True,
         )
         self.t_ls = t_ls
         self.done_ls_eval = False  # set to true after ls_eval
@@ -102,9 +87,6 @@ class LandscapeEvalCallback(EvalCallback):
         self._evaluate(ls_eval, freq_eval, final_eval, final_final)
         return True
 
-    # def _on_training_end(self) -> None:
-    #     self._evaluate(ls_eval=False, freq_eval=False, final_eval=True)
-
     def _evaluate(self, ls_eval: bool, freq_eval: bool, final_eval: bool, final_final: bool) -> None:
         """
         Evaluate the policy (that is trained on some configuration with a seed).
@@ -115,7 +97,6 @@ class LandscapeEvalCallback(EvalCallback):
         :param final_eval: Write eval output to final_eval/mean_{return,ep_length}.
         :param final_final: last of the final evals, data can now be written.
         """
-        # continue_training = True
         assert self.logger is not None
 
         if freq_eval or ls_eval or final_eval:
@@ -134,9 +115,6 @@ class LandscapeEvalCallback(EvalCallback):
                         "and warning above."
                     ) from e
 
-            # Reset success rate buffer
-            # self._is_success_buffer: List[Any] = []
-
             # returns and ep_lengths of n_eval_episodes evaluation rollouts/episodes
             self.eval_env.seed(self.eval_seed)
             returns, ep_lengths = evaluate_policy(
@@ -154,25 +132,6 @@ class LandscapeEvalCallback(EvalCallback):
             if final_eval:
                 self.final_returns.append(returns)
                 self.final_ep_lengths.append(ep_lengths)
-
-            # if freq_eval and self.log_path is not None:
-            #     self.evaluations_timesteps.append(self.num_timesteps)
-            #     self.evaluations_results.append(returns)
-            #     self.evaluations_length.append(ep_lengths)
-
-            # kwargs = {}
-            # Save success log if present
-            # if len(self._is_success_buffer) > 0:
-            #     self.evaluations_successes.append(self._is_success_buffer)
-            #     kwargs = dict(successes=self.evaluations_successes)
-
-            # np.savez(
-            #     self.log_path,
-            #     timesteps=self.evaluations_timesteps,
-            #     results=self.evaluations_results,
-            #     ep_lengths=self.evaluations_length,
-            #     **kwargs,
-            # )
 
             mean_return, std_return = float(np.mean(returns)), float(np.std(returns))
             mean_ep_length, std_ep_length = np.mean(ep_lengths), np.std(ep_lengths)
@@ -211,26 +170,10 @@ class LandscapeEvalCallback(EvalCallback):
                 self.run.log({"final_eval/return_hist": wandb.Histogram(np_histogram=return_hist)})
                 self.run.log({"final_eval/ep_length_hist": wandb.Histogram(np_histogram=ep_length_hist)})
 
-            # if freq_eval and len(self._is_success_buffer) > 0:
-            #     success_rate = np.mean(self._is_success_buffer)
-            #     if self.verbose > 0:
-            #         print(f"Success rate: {100 * success_rate:.2f}%")
-            #     self.logger.record("eval/success_rate", success_rate)
-
             # Dump log so the evaluation results are printed with the correct timestep
             if freq_eval or final_eval:
                 self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
                 self.logger.dump(self.num_timesteps)
-
-            # if freq_eval and mean_return > self.best_mean_reward:
-            #     if self.verbose > 0:
-            #         print("New best mean return!")
-            # if self.best_model_save_path is not None:
-            #     self.model.save(os.path.join(self.best_model_save_path, "best_model"))
-            # self.best_mean_return = mean_return
-            # Trigger callback on new best model, if needed
-            # if self.callback_on_new_best is not None:
-            #     continue_training = self.callback_on_new_best.on_step()
 
             if ls_eval:
                 if self.verbose > 0:
@@ -238,15 +181,6 @@ class LandscapeEvalCallback(EvalCallback):
                 self.model.save(self.ls_model_save_path)
 
             if final_eval:
-                # if self.verbose > 0:
-                #     print(f"Saving model checkpoint to {self.ls_model_save_path}")
-                # self.model.save(self.ls_model_save_path)
-                # self.comp.record(self.conf_idx, self.run_id, mean_reward)
                 self.final_mean_return = mean_return
 
-            # Trigger callback after every evaluation, if needed
-            # if self.callback is not None:
-            #     continue_training = continue_training and self._on_event()
-
-        # return continue_training
         return
