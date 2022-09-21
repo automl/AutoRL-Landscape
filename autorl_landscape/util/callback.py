@@ -23,6 +23,7 @@ class LandscapeEvalCallback(EvalCallback):
         conf: DictConfig,
         eval_env: Union[gym.Env, VecEnv],
         t_ls: int,
+        t_final: int,
         ls_model_save_path: str,
         conf_idx: int,
         run: Union[Run, RunDisabled],
@@ -59,11 +60,15 @@ class LandscapeEvalCallback(EvalCallback):
         # special eval config:
         self.ls_eval_episodes = conf.eval.ls_eval_episodes
         self.final_eval_episodes = conf.eval.final_eval_episodes
-        self.t_final_evals = np.linspace(
-            int(conf.env.total_timesteps * conf.eval.final_eval_start),
-            conf.env.total_timesteps,
-            conf.eval.final_eval_times,
-            dtype=int,
+        self.t_final_evals = (
+            np.linspace(
+                int(conf.env.total_timesteps * conf.eval.final_eval_start),
+                conf.env.total_timesteps,
+                conf.eval.final_eval_times,
+                dtype=int,
+            )
+            + t_final
+            - conf.env.total_timesteps
         )
         self.eval_seed = conf.eval.seed
 
@@ -149,11 +154,8 @@ class LandscapeEvalCallback(EvalCallback):
 
             # Add to current Logger
             # self.logger.record: logs time-dependent values to line plots
-            # self.run.summary: logs just once for a run
+            # self.run.summary: logs just once for a run, save raw data
             # self.run.log: logs histograms of return data for better visualization
-            if freq_eval:
-                self.logger.record("freq_eval/mean_return", float(np.mean(freq_returns)))
-                self.logger.record("freq_eval/mean_ep_length", np.mean(freq_ep_lengths))
             if ls_eval:
                 self.run.summary["ls_eval/returns"] = ls_returns
                 self.run.summary["ls_eval/ep_lengths"] = ls_ep_lengths
@@ -174,11 +176,19 @@ class LandscapeEvalCallback(EvalCallback):
                 )
                 self.run.log({"final_eval/return_hist": wandb.Histogram(np_histogram=return_hist)})
                 self.run.log({"final_eval/ep_length_hist": wandb.Histogram(np_histogram=ep_length_hist)})
+            for f, s, s_returns, s_ep_lengths in [
+                (freq_eval, "freq", freq_returns, freq_ep_lengths),
+                (ls_eval, "ls", ls_returns, ls_ep_lengths),
+                (final_eval, "final", final_returns, final_ep_lengths),
+            ]:
+                # always log mean value for easy visualization
+                if f:
+                    self.logger.record(f"{s}_eval/mean_return", np.mean(s_returns))
+                    self.logger.record(f"{s}_eval/mean_ep_length", np.mean(s_ep_lengths))
 
             # Dump log so the evaluation results are printed with the correct timestep
-            if freq_eval or final_eval:
-                self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
-                self.logger.dump(self.num_timesteps)
+            self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
+            self.logger.dump(self.num_timesteps)
 
             if ls_eval:
                 if self.verbose > 0:

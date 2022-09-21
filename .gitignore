@@ -143,4 +143,5 @@ dmypy.json
 /multirun
 /runs
 /phase_results
+/submitit
 Session.vim

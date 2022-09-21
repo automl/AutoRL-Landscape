@@ -1,6 +1,6 @@
 defaults:
   - combo: testing
-  - ls: full
+  - ls: reduced
   - _self_
 
 # seed for agents and environments

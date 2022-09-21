@@ -6,7 +6,6 @@ import submitit
 import wandb
 from ConfigSpace import Categorical, Configuration, ConfigurationSpace, Float, Uniform
 from omegaconf import DictConfig, OmegaConf
-from stable_baselines3.common.base_class import BaseAlgorithm
 from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.dqn.dqn import DQN
@@ -28,6 +27,7 @@ def make_env(env_name: str, seed: int) -> gym.Env:
 def run_phase(
     conf: DictConfig,
     t_ls: int,
+    t_final: int,
     date_str: str,
     phase_str: str,
     init_agent: Optional[str] = None,
@@ -89,7 +89,17 @@ def run_phase(
         del c
 
         job = executor.submit(
-            _train_agent, init_agent, conf, ls_conf, ls_conf_readable, date_str, phase_str, t_ls, conf_idx, phase_path
+            _train_agent,
+            init_agent,
+            conf,
+            ls_conf,
+            ls_conf_readable,
+            date_str,
+            phase_str,
+            t_ls,
+            t_final,
+            conf_idx,
+            phase_path,
         )
         jobs.append(job)
 
@@ -101,7 +111,8 @@ def run_phase(
     print(f"{run_ids=}")
     print(f"{final_scores=}")
 
-    choose_best_conf(run_ids, final_scores, save=phase_path)
+    best = choose_best_conf(run_ids, final_scores, save=phase_path)
+    print(f"Best run: {best}")
 
     return
 
@@ -114,6 +125,7 @@ def _train_agent(
     date_str: str,
     phase_str: str,
     t_ls: int,
+    t_final: int,
     conf_idx: int,
     phase_path: str,
 ) -> Tuple[np.ndarray, np.ndarray]:
@@ -164,11 +176,9 @@ def _train_agent(
         }
 
         # Agent Selection:
-        agent_name = conf.agent.name
-        agent: Optional[BaseAlgorithm]
-        if agent_name == "DQN":
+        if conf.agent.name == "DQN":
             agent = DQN(**agent_kwargs, **conf.agent.hps, **ls_conf)
-        elif agent_name == "SAC":
+        elif conf.agent.name == "SAC":
             agent = SAC(**agent_kwargs, **conf.agent.hps, **ls_conf)
         else:
             raise Exception("unknown agent")
@@ -176,6 +186,10 @@ def _train_agent(
         # Load existing parameters of agent:
         if init_agent is not None:
             agent.set_parameters(init_agent)
+            # TODO set ls specific stuff depending on what ls is
+            agent.learning_rate = ls_conf["learning_rate"]
+            agent.gamma = ls_conf["gamma"]
+            # TODO set algorithm specific stuff like changing exploration factor in DQN
 
         wandb_callback = WandbCallback(
             gradient_save_freq=1,
@@ -186,6 +200,7 @@ def _train_agent(
             conf=conf,
             eval_env=eval_env,
             t_ls=t_ls,
+            t_final=t_final,
             ls_model_save_path=f"{phase_path}/agents/{run.id}/model.zip",
             conf_idx=conf_idx,
             run=run,
@@ -195,7 +210,7 @@ def _train_agent(
         # Wandb Logging and Evaluation
         callbacks = CallbackList([wandb_callback, landscape_eval_callback])
 
-        agent.learn(total_timesteps=conf.env.total_timesteps, callback=callbacks)
+        agent.learn(total_timesteps=t_final, callback=callbacks)
 
         run.finish()
         final_scores[i] = np.mean(landscape_eval_callback.all_final_returns)  # TODO actual metric for comparing runs

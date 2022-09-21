@@ -1,8 +1,8 @@
 # @package _global_
 
 ls:
-  seed: 123 # landscape sampler rng
-  num_samples: 2 # how many samples in the landscape
+  seed: 6345634 # landscape sampler rng
+  num_samples: 5 # how many samples in the landscape
   use_zoo_optimal_ls: False # if true, don't sample from config space but just use the best conf from zoo
   dims:
     - nn_width:
