@@ -193,6 +193,6 @@ class LandscapeEvalCallback(EvalCallback):
             if ls_eval:
                 if self.verbose > 0:
                     print(f"Saving model checkpoint to {self.ls_model_save_path}")
-                self.model.save(self.ls_model_save_path)
+                self.model.save(f"{self.ls_model_save_path}/model.zip")
 
         return

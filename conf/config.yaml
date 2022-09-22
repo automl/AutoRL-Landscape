@@ -1,10 +1,10 @@
 defaults:
   - combo: testing
-  - ls: reduced
+  - ls: zoo
   - _self_
 
+wandb:
+  project: test_loading
 # seed for agents and environments
 seeds:
   - 166
-  # - 167
-  # - 168

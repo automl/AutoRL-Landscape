@@ -1,0 +1,15 @@
+# @package _global_
+
+ls:
+  seed: 0 # landscape sampler rng
+  num_samples: 1 # how many samples in the landscape
+  use_zoo_optimal_ls: True # if true, don't sample from config space but just use the best conf from zoo
+  dims:
+    - nn_width:
+        type: Constant # the constant value will be queried from agent/zoo_optimal_ls
+    - nn_length:
+        type: Constant
+    - learning_rate:
+        type: Constant
+    - neg_gamma:
+        type: Constant

@@ -6,11 +6,9 @@ import submitit
 import wandb
 from ConfigSpace import Categorical, Configuration, ConfigurationSpace, Float, Uniform
 from omegaconf import DictConfig, OmegaConf
-from stable_baselines3.common.callbacks import CallbackList
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.dqn.dqn import DQN
 from stable_baselines3.sac.sac import SAC
-from wandb.integration.sb3 import WandbCallback
 
 from autorl_landscape.util.callback import LandscapeEvalCallback
 from autorl_landscape.util.compare import choose_best_conf
@@ -58,7 +56,7 @@ def run_phase(
 
     executor = submitit.AutoExecutor(folder="submitit", cluster="local")
     jobs = []
-    executor.update_parameters(timeout_min=10, slurm_partition="dev", gpus_per_node=1)
+    executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
     for conf_idx in range(conf.ls.num_samples):
 
@@ -151,7 +149,7 @@ def _train_agent(
 
         # setup wandb
         run = wandb.init(
-            project="checking9",
+            project=conf.wandb.project,
             config={
                 "ls": ls_conf_readable,
                 "conf": OmegaConf.to_object(conf),
@@ -191,24 +189,20 @@ def _train_agent(
             agent.gamma = ls_conf["gamma"]
             # TODO set algorithm specific stuff like changing exploration factor in DQN
 
-        wandb_callback = WandbCallback(
-            gradient_save_freq=1,
-            # model_save_path=f"models/{run.id}",
-            verbose=1,
-        )
         landscape_eval_callback = LandscapeEvalCallback(
             conf=conf,
             eval_env=eval_env,
             t_ls=t_ls,
             t_final=t_final,
-            ls_model_save_path=f"{phase_path}/agents/{run.id}/model.zip",
+            ls_model_save_path=f"{phase_path}/agents/{run.id}",
             conf_idx=conf_idx,
             run=run,
             # eval_freq=conf.eval.eval_freq,
             # n_eval_episodes=conf.env.n_eval_episodes,
         )
         # Wandb Logging and Evaluation
-        callbacks = CallbackList([wandb_callback, landscape_eval_callback])
+        # callbacks = CallbackList([wandb_callback, landscape_eval_callback])
+        callbacks = landscape_eval_callback
 
         agent.learn(total_timesteps=t_final, callback=callbacks)
 

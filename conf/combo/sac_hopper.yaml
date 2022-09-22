@@ -8,14 +8,29 @@ agent:
   name: SAC
   hps:
     policy: 'MlpPolicy'
-    use_sde: False
+    # use_sde: False
     learning_starts: 10000
+  zoo_optimal_ls:
+    learning_rate: 0.0003
+    neg_gamma: 0.01
+    nn_length: 3 # TODO is this right?
+    nn_width: 256
 env:
   name: Hopper-v3
-  total_timesteps: 1000000
+  total_timesteps: 500000
 eval:
-  freq_eval_inteval: 1000
-  freq_eval_episodes: 5
+  seed: 456
+  freq_eval_interval: 10000
+  freq_eval_episodes: 10
+  ls_eval_episodes: 10
+  final_eval_episodes: 10
+  final_eval_start: 0.95 # 95% progress (of total_timesteps) is first final eval
+  final_eval_times: 3 # 3 final evals from final_eval_start until total_timesteps
+viz:
+  max_return: 5000
+  max_ep_length: 5000
+  hist_bins: 100
+phases:
 # from sac.yaml:
 # name: SAC
 # hps:
