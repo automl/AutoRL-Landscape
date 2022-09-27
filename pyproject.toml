@@ -4,7 +4,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]             # path to the test directory
 minversion = "3.8"
-addopts = "--cov=autorl_landscape" # Should be package name
+# addopts = "--cov=autorl_landscape" # Should be package name TODO commented this for vscode debugging pytest as a workaround
 
 [tool.coverage.run]
 branch = true
