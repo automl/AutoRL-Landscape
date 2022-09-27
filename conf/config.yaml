@@ -1,10 +1,10 @@
 defaults:
   - combo: testing
-  - ls: zoo
+  - ls: sobol_reduced
   - _self_
 
 wandb:
-  project: test_loading
+  project: test_sobol
 # seed for agents and environments
 seeds:
   - 166

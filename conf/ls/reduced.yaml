@@ -1,9 +1,9 @@
 # @package _global_
 
 ls:
+  type: ConfigSpace
   seed: 6345634 # landscape sampler rng
   num_samples: 5 # how many samples in the landscape
-  use_zoo_optimal_ls: False # if true, don't sample from config space but just use the best conf from zoo
   dims:
     - nn_width:
         type: Constant # the constant value will be queried from agent/zoo_optimal_ls
@@ -18,4 +18,4 @@ ls:
         type: Float
         log: True
         lower: 0.0001
-        upper: 0.8
+        upper: 0.2 # or 0.5

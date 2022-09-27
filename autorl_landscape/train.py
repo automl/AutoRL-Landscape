@@ -1,10 +1,9 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import gym
 import numpy as np
 import submitit
 import wandb
-from ConfigSpace import Categorical, Configuration, ConfigurationSpace, Float, Uniform
 from omegaconf import DictConfig, OmegaConf
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.dqn.dqn import DQN
@@ -12,6 +11,7 @@ from stable_baselines3.sac.sac import SAC
 
 from autorl_landscape.util.callback import LandscapeEvalCallback
 from autorl_landscape.util.compare import choose_best_conf
+from autorl_landscape.util.ls_sampler import construct_ls
 
 
 def make_env(env_name: str, seed: int) -> gym.Env:
@@ -35,22 +35,6 @@ def run_phase(
     If initial_agent is given, start with its progress instead of training from 0.
     After this, train all agents until t_final env steps and evaluate here to choose the best configuration.
     """
-    # Landscape Hyperparameters:
-    dims: List[Any] = []
-    for dim_name, dim_args in [(next(iter(a)), a[next(iter(a))]) for a in conf.ls.dims]:
-        if dim_args["type"] == "Categorical":
-            dims.append(Categorical(dim_name, dim_args["items"], ordered=True))
-        elif dim_args["type"] == "Float":
-            dims.append(Float(dim_name, (dim_args.lower, dim_args.upper), distribution=Uniform(), log=dim_args.log))
-        elif dim_args["type"] == "Constant":
-            zoo_value = conf.agent.zoo_optimal_ls[dim_name]
-            dims.append(Categorical(dim_name, [zoo_value], ordered=True))
-        else:
-            raise Exception(f"Unknown ls dimension type: {dim_args['type']}")
-
-    cs = ConfigurationSpace(seed=conf.ls.seed)
-    cs.add_hyperparameters(dims)
-
     # path for saving agents of the current phase
     phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
 
@@ -58,23 +42,16 @@ def run_phase(
     jobs = []
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    for conf_idx in range(conf.ls.num_samples):
+    for conf_idx, c in construct_ls(conf).iterrows():  # NOTE: iterrows() changes datatypes, we get only np.float64
 
-        # Sample or set the configuration
-        if conf.ls.use_zoo_optimal_ls:
-            if conf.ls.num_samples > 1:
-                raise Exception("When using optimal ls hyperparameters, set num_samples to 1!")
-            print("WARNING: Using optimal ls configuration instead of sampling...")
-            c = Configuration(cs, conf.agent.zoo_optimal_ls)
-        else:
-            c = cs.sample_configuration()
+        # c = cs.sample_configuration()
 
         ls_conf = {
             # [256, 256] translates to three layers:
             # Linear(i, 256), relu
             # Linear(256, 256), relu
             # Linear(256, o)
-            "policy_kwargs": {"net_arch": [c["nn_width"]] * (c["nn_length"] - 1)},
+            "policy_kwargs": {"net_arch": [int(c["nn_width"])] * int(c["nn_length"] - 1)},
             "learning_rate": c["learning_rate"],
             "gamma": 1 - c["neg_gamma"],
         }
