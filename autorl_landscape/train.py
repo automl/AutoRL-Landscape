@@ -1,14 +1,16 @@
 from typing import Any, Dict, Optional, Tuple
 
+from pathlib import Path
+
 import gym
 import numpy as np
 import submitit
 import wandb
 from omegaconf import DictConfig, OmegaConf
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.dqn.dqn import DQN
 from stable_baselines3.sac.sac import SAC
 
+from autorl_landscape.custom_agents.custom_dqn import CustomDQN
 from autorl_landscape.util.callback import LandscapeEvalCallback
 from autorl_landscape.util.compare import choose_best_conf
 from autorl_landscape.util.ls_sampler import construct_ls
@@ -27,8 +29,8 @@ def run_phase(
     t_ls: int,
     t_final: int,
     date_str: str,
-    phase_str: str,
-    init_agent: Optional[str] = None,
+    phase_str: Path,
+    init_agent: Optional[Path] = None,
 ) -> None:
     """
     Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
@@ -93,7 +95,7 @@ def run_phase(
 
 
 def _train_agent(
-    init_agent: Optional[str],
+    init_agent: Optional[Path],
     conf: DictConfig,
     ls_conf: Dict[str, Any],
     ls_conf_readable: Dict[str, Any],
@@ -134,6 +136,7 @@ def _train_agent(
                     "timestamp": date_str,
                     "phase": phase_str,
                     "seed": seed,
+                    "init_agent": str(init_agent),
                 },
             },
             sync_tensorboard=True,
@@ -145,26 +148,28 @@ def _train_agent(
         # Basic agent configuration:
         agent_kwargs = {
             "env": env,
-            "verbose": 0,  # Higher than 0 breaks the console output logging with too long keys!
+            "verbose": 0,  # WARNING Higher than 0 breaks the console output logging with too long keys! : ) : ) : )
             "tensorboard_log": f"runs/{run.id}",
             "seed": seed,
         }
 
-        # Agent Selection:
         if conf.agent.name == "DQN":
-            agent = DQN(**agent_kwargs, **conf.agent.hps, **ls_conf)
+            AgentClass = CustomDQN
         elif conf.agent.name == "SAC":
-            agent = SAC(**agent_kwargs, **conf.agent.hps, **ls_conf)
+            AgentClass = SAC
         else:
             raise Exception("unknown agent")
-
-        # Load existing parameters of agent:
-        if init_agent is not None:
-            agent.set_parameters(init_agent)
+        # Agent Instantiation:
+        if init_agent is None:
+            agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)
+        else:
+            agent = AgentClass.custom_load(save_path=init_agent, seed=seed)
+            # # Load existing parameters of agent:
+            # agent.set_parameters(init_agent)
             # TODO set ls specific stuff depending on what ls is
             agent.learning_rate = ls_conf["learning_rate"]
             agent.gamma = ls_conf["gamma"]
-            # TODO set algorithm specific stuff like changing exploration factor in DQN
+            # # TODO set algorithm specific stuff like changing exploration factor in DQN
 
         landscape_eval_callback = LandscapeEvalCallback(
             conf=conf,
@@ -174,6 +179,7 @@ def _train_agent(
             ls_model_save_path=f"{phase_path}/agents/{run.id}",
             conf_idx=conf_idx,
             run=run,
+            agent_seed=seed,
             # eval_freq=conf.eval.eval_freq,
             # n_eval_episodes=conf.env.n_eval_episodes,
         )

@@ -27,6 +27,7 @@ class LandscapeEvalCallback(EvalCallback):
         ls_model_save_path: str,
         conf_idx: int,
         run: Union[Run, RunDisabled],
+        agent_seed: int,
         verbose: int = 1,
     ):
         super().__init__(
@@ -47,6 +48,7 @@ class LandscapeEvalCallback(EvalCallback):
         self.ls_model_save_path = ls_model_save_path
         self.conf_idx = conf_idx
         self.run = run
+        self.agent_seed = agent_seed
 
         # histogram bounds:
         self.max_return = conf.viz.max_return
@@ -193,6 +195,6 @@ class LandscapeEvalCallback(EvalCallback):
             if ls_eval:
                 if self.verbose > 0:
                     print(f"Saving model checkpoint to {self.ls_model_save_path}")
-                self.model.save(f"{self.ls_model_save_path}/model.zip")
+                self.model.custom_save(self.locals, self.ls_model_save_path, seed=self.agent_seed)
 
         return

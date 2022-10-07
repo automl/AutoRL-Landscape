@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 
 import hydra
 import wandb
@@ -11,7 +12,7 @@ from autorl_landscape.train import run_phase
 def main(conf: DictConfig) -> None:
     print(OmegaConf.to_yaml(conf))
     # remember starting time of this run for saving all phase data:
-    date_str = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     # TODO still not quite sure what this does but error message seems to be gone
     wandb.tensorboard.patch(root_logdir="...")
@@ -40,7 +41,11 @@ def main(conf: DictConfig) -> None:
                 phase_str=phase_str,
                 init_agent=init_agent,
             )
-            init_agent = f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}/best_agent/model.zip"
+            init_agent = (
+                Path(f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}/best_agent")
+                .resolve()
+                .relative_to(Path.cwd())
+            )
             last_t_phase = t_phase
             # TODO maybe hack global_step?
     else:
