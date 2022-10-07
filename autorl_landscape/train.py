@@ -187,7 +187,7 @@ def _train_agent(
         # callbacks = CallbackList([wandb_callback, landscape_eval_callback])
         callbacks = landscape_eval_callback
 
-        agent.learn(total_timesteps=t_final, callback=callbacks)
+        agent.learn(total_timesteps=t_final, callback=callbacks, reset_num_timesteps=False)
 
         run.finish()
         final_scores[i] = np.mean(landscape_eval_callback.all_final_returns)  # TODO actual metric for comparing runs

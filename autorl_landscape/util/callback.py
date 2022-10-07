@@ -75,19 +75,17 @@ class LandscapeEvalCallback(EvalCallback):
         self.eval_seed = conf.eval.seed
 
     def _on_training_start(self) -> None:
-        self._evaluate(False, True, False, False)
+        # self.logger.record("time/total_timesteps", 69, exclude="tensorboard")
+        # self.logger.dump(step=69)
+        # print(f"{self.num_timesteps}")
+        # self._evaluate(False, True, False, False)
+        pass
 
     def _on_step(self) -> bool:
         ls_eval = not self.done_ls_eval and self.n_calls >= self.t_ls
         freq_eval = self.eval_freq > 0 and self.n_calls % self.eval_freq == 0  # or (self.n_calls == 1)
         final_eval = self.n_calls in self.t_final_evals
         final_final = self.t_final_evals[-1] == self.n_calls
-
-        # log_str = f"T={self.num_timesteps}={self.n_calls}"
-        # for flag in [freq_eval, ls_eval, final_eval]:
-        #     if flag:
-        #         log_str += f" {flag=}".split("=")[0]
-        # print(log_str)
 
         self._evaluate(ls_eval, freq_eval, final_eval, final_final)
         return True
@@ -108,6 +106,7 @@ class LandscapeEvalCallback(EvalCallback):
             # Only do landscape eval once
             if ls_eval:
                 self.done_ls_eval = True
+                print(f"{ls_eval=} at {self.num_timesteps=}")
 
             # Sync training and eval env if there is VecNormalize
             if self.model.get_vec_normalize_env() is not None:
