@@ -10,6 +10,7 @@ from autorl_landscape.train import run_phase
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(conf: DictConfig) -> None:
+    """Run the experiment with the configuration from the `conf/` directory."""
     print(OmegaConf.to_yaml(conf))
     # remember starting time of this run for saving all phase data:
     date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -47,7 +48,6 @@ def main(conf: DictConfig) -> None:
                 .relative_to(Path.cwd())
             )
             last_t_phase = t_phase
-            # TODO maybe hack global_step?
     else:
         # a rudimentary way to just run the agent without any phase stuff
         run_phase(

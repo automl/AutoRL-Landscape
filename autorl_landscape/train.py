@@ -8,7 +8,6 @@ import submitit
 import wandb
 from omegaconf import DictConfig, OmegaConf
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.sac.sac import SAC
 
 from autorl_landscape.custom_agents.custom_dqn import CustomDQN
 from autorl_landscape.util.callback import LandscapeEvalCallback
@@ -29,11 +28,12 @@ def run_phase(
     t_ls: int,
     t_final: int,
     date_str: str,
-    phase_str: Path,
+    phase_str: str,
     init_agent: Optional[Path] = None,
 ) -> None:
     """
     Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
+
     If initial_agent is given, start with its progress instead of training from 0.
     After this, train all agents until t_final env steps and evaluate here to choose the best configuration.
     """
@@ -153,10 +153,11 @@ def _train_agent(
             "seed": seed,
         }
 
+        # AgentClass: type
         if conf.agent.name == "DQN":
             AgentClass = CustomDQN
-        elif conf.agent.name == "SAC":
-            AgentClass = SAC
+        # elif conf.agent.name == "SAC":
+        #     AgentClass = SAC
         else:
             raise Exception("unknown agent")
         # Agent Instantiation:
