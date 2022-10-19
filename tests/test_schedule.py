@@ -14,6 +14,15 @@ def test_null() -> None:
     return
 
 
+def test_many_jobs() -> None:
+    """Tests high parallel setting."""
+    executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
+    executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
+
+    schedule(executor, [(time.sleep, 1) for _ in range(5)], num_parallel=1000)
+    return
+
+
 def check_timing() -> None:
     """Not a test. If only 2 jobs can run at the same time, 10 sleep(1) jobs have to take at least 5 seconds."""
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")

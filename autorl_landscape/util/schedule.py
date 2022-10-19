@@ -26,6 +26,7 @@ def schedule(
     List
         The return values of all jobs.
     """
+    assert num_parallel > 0
     running_jobs: Dict[int, submitit.Job] = {}
     results: Dict[int, Any] = {}
     next_job = 0  # index of the job to be started next
