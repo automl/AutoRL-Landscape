@@ -13,11 +13,6 @@ from wandb.sdk.wandb_run import Run
 
 
 class LandscapeEvalCallback(EvalCallback):
-    """
-    Like EvalCallback, but also saves evaluation and model at a special (landscape eval) timestep to a custom logging
-    output.
-    """
-
     def __init__(
         self,
         conf: DictConfig,
