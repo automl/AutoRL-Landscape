@@ -1,9 +1,9 @@
 # @package _global_
 
 slurm:
-  # cluster: Null # becomes None in python
+  cluster: Null # becomes None in python
   num_parallel: 3
   update_parameters: # for executor.update_parameters()
     timeout_min: 1000
-    slurm_partition: dev
+    slurm_partition: gpu_normal_stud
     gpus_per_node: 1
