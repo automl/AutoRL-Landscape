@@ -13,6 +13,7 @@ from autorl_landscape.custom_agents.custom_dqn import CustomDQN
 from autorl_landscape.util.callback import LandscapeEvalCallback
 from autorl_landscape.util.compare import choose_best_conf
 from autorl_landscape.util.ls_sampler import construct_ls
+from autorl_landscape.util.schedule import schedule
 
 
 def make_env(env_name: str, seed: int) -> gym.Env:
@@ -40,14 +41,11 @@ def run_phase(
     # path for saving agents of the current phase
     phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
 
-    executor = submitit.AutoExecutor(folder="submitit", cluster="local")
-    jobs = []
-    executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
+    executor = submitit.AutoExecutor(folder="submitit", cluster=conf.slurm.cluster)
+    tasks = []
+    executor.update_parameters(**conf.slurm.update_parameters)
 
     for conf_idx, c in construct_ls(conf).iterrows():  # NOTE: iterrows() changes datatypes, we get only np.float64
-
-        # c = cs.sample_configuration()
-
         ls_conf = {
             # [256, 256] translates to three layers:
             # Linear(i, 256), relu
@@ -65,7 +63,7 @@ def run_phase(
         }
         del c
 
-        job = executor.submit(
+        task = (
             _train_agent,
             init_agent,
             conf,
@@ -78,10 +76,11 @@ def run_phase(
             conf_idx,
             phase_path,
         )
-        jobs.append(job)
+        tasks.append(task)
 
     # print(jobs)
-    results = [job.result() for job in jobs]
+    results = schedule(executor, tasks, conf.slurm.num_parallel)
+    # results = [job.result() for job in tasks]
     run_ids, final_scores = zip(*results)
     run_ids = np.array(run_ids)
     final_scores = np.array(final_scores)

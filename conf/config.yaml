@@ -2,11 +2,10 @@ defaults:
   - combo: testing
   - ls: sobol_reduced
   - _self_
-
+  - slurm: ???
 wandb:
   project: test_deterministic
-# seed for agents and environments
-seeds:
+seeds: # seed for agents and environments
   - 166
   # - 167
   # - 168

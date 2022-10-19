@@ -1,0 +1,9 @@
+# @package _global_
+
+slurm:
+  cluster: local
+  num_parallel: 2
+  update_parameters: # for executor.update_parameters()
+    timeout_min: 1000
+    slurm_partition: dev
+    gpus_per_node: 1
