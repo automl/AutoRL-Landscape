@@ -1,0 +1,19 @@
+ls:
+  type: Sobol
+  seed: 123 # landscape sampler rng
+  num_samples: 512 # needs to be a power of 2
+  dims:
+    - nn_width:
+        type: Categorical
+        items:
+          - 16
+          - 32
+          - 64
+          - 128
+          - 256
+    - foo:
+        type: Categorical
+        items:
+          - foo
+          - bar
+          - baz

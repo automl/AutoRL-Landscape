@@ -32,6 +32,13 @@ def test_partial_sobol() -> None:
     assert np.all(df_pure == df_dirty[["nn_width", "nn_length", "learning_rate", "neg_gamma"]])
 
 
+def test_categorical() -> None:
+    """Create lots of samples, then check whether the configurations only have the category values."""
+    df = construct_ls(hydra.compose("categorical.yaml"))
+    assert np.all(np.isin(df.nn_width, [16, 32, 64, 128, 256]))
+    assert np.all(np.isin(df.foo, ["foo", "bar", "baz"]))
+
+
 @pytest.mark.skip(reason="Visualization")
 def test_sobol_pattern() -> None:
     """Visualize with plt to inspect the sampled patterns."""

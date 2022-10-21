@@ -40,7 +40,7 @@ def construct_ls(conf: DictConfig) -> pd.DataFrame:
 
         types: Dict[str, type] = {}
         dims = [(next(iter(d)), d[next(iter(d))]) for d in conf.ls.dims]
-        configs = np.zeros((conf.ls.num_samples, len(dims)))
+        configs = np.zeros((conf.ls.num_samples, len(dims)), dtype="O")
         sampler = Sobol(len([1 for (_, dim_args) in dims if dim_args["type"] != "Constant"]), seed=conf.ls.seed)
         samples = sampler.random_base2(int(np.log2(conf.ls.num_samples)))
 
@@ -51,6 +51,13 @@ def construct_ls(conf: DictConfig) -> pd.DataFrame:
                 configs[:, i] = np.round((samples[:, s] * (dim_args["upper"] - dim_args["lower"])) + dim_args["lower"])
                 types[dim_name] = int
                 s += 1
+            elif dim_args["type"] == "Categorical":
+                num_categories = len(dim_args["items"])
+                # convert samples to indices:
+                indices = np.floor(samples[:, s] * num_categories).astype(int)
+                # TODO configs does only take numbers atm
+                configs[:, i] = np.array(dim_args["items"])[indices]
+                # types[dim_name] = None  # TODO
             elif dim_args["type"] == "Log":
                 configs[:, i] = (dim_args["base"] ** samples[:, s] - 1) / (dim_args["base"] - 1)
                 configs[:, i] = (configs[:, i] * (dim_args["upper"] - dim_args["lower"])) + dim_args["lower"]
