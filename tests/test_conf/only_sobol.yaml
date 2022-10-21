@@ -1,18 +1,12 @@
-# @package _global_
-
 ls:
   type: Sobol
   seed: 123 # landscape sampler rng
   num_samples: 4 # needs to be a power of 2
   dims:
     - nn_width:
-        type: Categorical # TODO implement this
-        items:
-          - 16
-          - 32
-          - 64
-          - 128
-          - 256
+        type: Integer
+        lower: 16
+        upper: 256
     - nn_length:
         type: Integer
         lower: 2

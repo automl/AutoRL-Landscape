@@ -9,7 +9,7 @@ from scipy.stats.qmc import Sobol
 
 def construct_ls(conf: DictConfig) -> pd.DataFrame:
     """
-    Builds landscape according to the passed config and returns a `pd.DataFrame` with samples from it.
+    Build landscape according to the passed config and returns a `pd.DataFrame` with samples from it.
 
     :param conf: `DictConfig` with ls dims, num of samples and optimal zoo hyperparameters for Constant dimensions.
     :return: `pd.DataFrame` with conf.ls.num_samples entries.
@@ -40,22 +40,28 @@ def construct_ls(conf: DictConfig) -> pd.DataFrame:
 
         types: Dict[str, type] = {}
         dims = [(next(iter(d)), d[next(iter(d))]) for d in conf.ls.dims]
-        sampler = Sobol(len(dims), seed=conf.ls.seed)
+        configs = np.zeros((conf.ls.num_samples, len(dims)))
+        sampler = Sobol(len([1 for (_, dim_args) in dims if dim_args["type"] != "Constant"]), seed=conf.ls.seed)
         samples = sampler.random_base2(int(np.log2(conf.ls.num_samples)))
+
+        # Transform the sampled sobol numbers into actual configurations:
+        s = 0  # sobol dim index
         for i, (dim_name, dim_args) in enumerate(dims):
             if dim_args["type"] == "Integer":
-                samples[:, i] = np.round((samples[:, i] * (dim_args["upper"] - dim_args["lower"])) + dim_args["lower"])
+                configs[:, i] = np.round((samples[:, s] * (dim_args["upper"] - dim_args["lower"])) + dim_args["lower"])
                 types[dim_name] = int
+                s += 1
             elif dim_args["type"] == "Log":
-                samples[:, i] = (dim_args["base"] ** samples[:, i] - 1) / (dim_args["base"] - 1)
-                samples[:, i] = (samples[:, i] * (dim_args["upper"] - dim_args["lower"])) + dim_args["lower"]
+                configs[:, i] = (dim_args["base"] ** samples[:, s] - 1) / (dim_args["base"] - 1)
+                configs[:, i] = (configs[:, i] * (dim_args["upper"] - dim_args["lower"])) + dim_args["lower"]
                 types[dim_name] = float
+                s += 1
             elif dim_args["type"] == "Constant":
                 value = conf.agent.zoo_optimal_ls[dim_name]
-                samples[:, i] = value
+                configs[:, i] = value
                 types[dim_name] = type(value)
             else:
                 raise Exception(f"Unknown ls dimension type: {dim_args['type']}")
-        return pd.DataFrame(samples, columns=[dim_name for (dim_name, _) in dims]).astype(types)
+        return pd.DataFrame(configs, columns=[dim_name for (dim_name, _) in dims]).astype(types)
     else:
         raise Exception(f"{conf.ls.type=} is not a known landscape type.")
