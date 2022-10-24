@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Dict, Union
 
 import gym
 import numpy as np
@@ -83,7 +83,7 @@ class LandscapeEvalCallback(EvalCallback):
         final_final = self.t_final_evals[-1] == self.n_calls
 
         self._evaluate(ls_eval, freq_eval, final_eval, final_final)
-        return True
+        return not final_final
 
     def _evaluate(self, ls_eval: bool, freq_eval: bool, final_eval: bool, final_final: bool) -> None:
         """
@@ -151,14 +151,15 @@ class LandscapeEvalCallback(EvalCallback):
             # Add to current Logger
             # self.logger.record: logs time-dependent values to line plots
             # self.run.summary: logs just once for a run, save raw data
-            # self.run.log: logs histograms of return data for better visualization
+            # self.run.log: logs histograms of return data for better visualization NOTE Only call this once?
+            log_dict: Dict[str, Any] = {}
             if ls_eval:
                 self.run.summary["ls_eval/returns"] = ls_returns
                 self.run.summary["ls_eval/ep_lengths"] = ls_ep_lengths
                 return_hist = np.histogram(ls_returns, bins=np.linspace(0, self.max_return, self.hist_bins))
                 ep_length_hist = np.histogram(ls_ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins))
-                self.run.log({"ls_eval/return_hist": wandb.Histogram(np_histogram=return_hist)})
-                self.run.log({"ls_eval/ep_length_hist": wandb.Histogram(np_histogram=ep_length_hist)})
+                log_dict["ls_eval/return_hist"] = wandb.Histogram(np_histogram=return_hist)
+                log_dict["ls_eval/ep_length_hist"] = wandb.Histogram(np_histogram=ep_length_hist)
             if final_final:
                 # combine all final evals and log together
                 shape = (len(self.t_final_evals), -1)
@@ -170,8 +171,8 @@ class LandscapeEvalCallback(EvalCallback):
                 ep_length_hist = np.histogram(
                     self.all_final_ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins)
                 )
-                self.run.log({"final_eval/return_hist": wandb.Histogram(np_histogram=return_hist)})
-                self.run.log({"final_eval/ep_length_hist": wandb.Histogram(np_histogram=ep_length_hist)})
+                log_dict["final_eval/return_hist"] = wandb.Histogram(np_histogram=return_hist)
+                log_dict["final_eval/ep_length_hist"] = wandb.Histogram(np_histogram=ep_length_hist)
             for f, s, s_returns, s_ep_lengths in [
                 (freq_eval, "freq", freq_returns, freq_ep_lengths),
                 (ls_eval, "ls", ls_returns, ls_ep_lengths),
@@ -179,14 +180,13 @@ class LandscapeEvalCallback(EvalCallback):
             ]:
                 # always log mean value for easy visualization
                 if f:
-                    self.logger.record(f"{s}_eval/mean_return", np.mean(s_returns))
-                    self.logger.record(f"{s}_eval/mean_ep_length", np.mean(s_ep_lengths))
+                    log_dict[f"{s}_eval/mean_return"] = np.mean(s_returns)
+                    log_dict[f"{s}_eval/mean_ep_length"] = np.mean(s_ep_lengths)
             if freq_eval:
                 print(f"{self.run.id} {self.num_timesteps} {np.mean(freq_returns)}")
 
-            # Dump log so the evaluation results are printed with the correct timestep
-            self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
-            self.logger.dump(self.num_timesteps)
+            log_dict["time/total_timesteps"] = self.num_timesteps
+            self.run.log(log_dict)
 
             if ls_eval:
                 if self.verbose > 0:
