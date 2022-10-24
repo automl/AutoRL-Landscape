@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import time
 
 import submitit
@@ -6,12 +8,12 @@ from autorl_landscape.util.schedule import schedule
 
 
 def test_null() -> None:
+    """Tests running the scheduler with nothing to do."""
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    res = schedule(executor, [], 10, 1)
+    res = schedule(executor, None, [], 10, 1)
     assert res == []
-    return
 
 
 def test_many_jobs() -> None:
@@ -19,8 +21,29 @@ def test_many_jobs() -> None:
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    schedule(executor, [(time.sleep, 1) for _ in range(5)], num_parallel=1000)
-    return
+    schedule(executor, time.sleep, [(1,) for _ in range(5)], num_parallel=1000)
+
+
+def test_adding_many_at_same_time() -> None:
+    """High parallel, not so high polling rate."""
+    executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
+    executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
+
+    schedule(executor, time.sleep, [(0.1,) for _ in range(50)], num_parallel=10, polling_rate=1)
+
+
+# TODO test order of return values always correct
+def test_return_order() -> None:
+    """Tests that return values are in the expected order."""
+    executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
+    executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
+
+    def subtract(a: int, b: int) -> int:
+        return a - b
+
+    num_tasks = 50
+    ret = schedule(executor, subtract, [(2 * i, i) for i in range(num_tasks)], num_parallel=10, polling_rate=1)
+    assert ret == list(range(num_tasks))
 
 
 def check_timing() -> None:
@@ -28,14 +51,13 @@ def check_timing() -> None:
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    def f(t: float):
+    def f(t: float) -> Tuple[float, float, float]:
         t_start = time.perf_counter()
         time.sleep(t)
         return (t, t_start, time.perf_counter())
 
     t_0 = time.perf_counter()
-    schedule(executor, [(f, t) for t in range(5, 0, -1)], 2, 0.001)  # TODO maybe reverse range?
+    schedule(executor, f, [(t,) for t in range(5, 0, -1)], 2, 0.001)  # TODO maybe reverse range?
     t_1 = time.perf_counter()
     # assert t_1 - t_0 >= 0.5  # TODO no overhead when starting dummy job first?
     print(t_1 - t_0)
-    return

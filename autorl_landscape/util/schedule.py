@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 import time
 
@@ -7,7 +7,8 @@ import submitit
 
 def schedule(
     executor: submitit.AutoExecutor,
-    tasks: Sequence[Tuple],  # [(func, x, y, z, ...)]
+    fn: Callable,
+    fn_args: Sequence[Tuple[Any, ...]],  # [(x, y, z, ...)]
     num_parallel: int,
     polling_rate: float = 1.0,
 ) -> List:
@@ -15,9 +16,10 @@ def schedule(
 
     executor : submitit.AutoExecutor
         The SLURM (or local) job executor
-    tasks : List[Tuple[Callable, ...]]
-        A list of tasks. Each task is a tuple with the first entry being the function to call, the rest being its
-        arguments.
+    fn : Callable
+        The function that is the task.
+    fn_args : Sequence[Tuple[Any, ...]]
+        A list of tuples. Each tuple represents the arguments to one function call.
     num_parallel : int
         How many jobs to have running at the same time.
 
@@ -38,13 +40,19 @@ def schedule(
                 del running_jobs[i]  # sus?
 
         # Add new jobs:
-        while len(running_jobs) < num_parallel and next_job < len(tasks):
-            running_jobs[next_job] = executor.submit(*tasks[next_job])
-            time.sleep(2)
-            next_job += 1
+        assert len(running_jobs) <= num_parallel  # that's kind of the point
+        # not too many at once, don't overflow index when close to done with all jobs:
+        num_new_jobs = min(num_parallel - len(running_jobs), len(fn_args) - next_job)
+        if num_new_jobs > 0:
+            new_tasks = fn_args[next_job : next_job + num_new_jobs]
+            new_jobs = executor.map_array(fn, *zip(*new_tasks))
+            assert len(new_jobs) == num_new_jobs
+            for i in range(num_new_jobs):
+                running_jobs[next_job + i] = new_jobs[i]
+            next_job += num_new_jobs
 
         # Do this until we have collected all results:
-        if len(results) >= len(tasks):
+        if len(results) >= len(fn_args):
             break
         time.sleep(polling_rate)
-    return [results[i] for i in range(len(tasks))]
+    return [results[i] for i in range(len(fn_args))]

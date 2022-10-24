@@ -64,7 +64,6 @@ def run_phase(
         del c
 
         task = (
-            _train_agent,
             init_agent,
             conf,
             ls_conf,
@@ -78,7 +77,7 @@ def run_phase(
         )
         tasks.append(task)
 
-    results = schedule(executor, tasks, conf.slurm.num_parallel, polling_rate=10)
+    results = schedule(executor, _train_agent, tasks, conf.slurm.num_parallel, polling_rate=10)
 
     # jobs = executor.map_array(_train_agent, *list(map(list, zip(*tasks))))
     # results = [job.result() for job in jobs]
