@@ -2,7 +2,7 @@
 
 slurm:
   cluster: local
-  num_parallel: 2
+  num_parallel: 5
   update_parameters: # for executor.update_parameters()
     timeout_min: 1000
     slurm_partition: dev

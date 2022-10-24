@@ -16,7 +16,7 @@ def main(conf: DictConfig) -> None:
     date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     # TODO still not quite sure what this does but error message seems to be gone
-    wandb.tensorboard.patch(root_logdir="...")
+    # wandb.tensorboard.patch(root_logdir="...")
 
     if conf.phases is not None:
         phases = conf.phases + [conf.env.total_timesteps]

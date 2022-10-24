@@ -78,9 +78,10 @@ def run_phase(
         )
         tasks.append(task)
 
-    # print(jobs)
     results = schedule(executor, tasks, conf.slurm.num_parallel, polling_rate=10)
-    # results = [job.result() for job in tasks]
+
+    # jobs = executor.map_array(_train_agent, *list(map(list, zip(*tasks))))
+    # results = [job.result() for job in jobs]
     run_ids, final_scores = zip(*results)
     run_ids = np.array(run_ids)
     final_scores = np.array(final_scores)

@@ -40,6 +40,7 @@ def schedule(
         # Add new jobs:
         while len(running_jobs) < num_parallel and next_job < len(tasks):
             running_jobs[next_job] = executor.submit(*tasks[next_job])
+            time.sleep(2)
             next_job += 1
 
         # Do this until we have collected all results:

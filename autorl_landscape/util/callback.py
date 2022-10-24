@@ -181,6 +181,8 @@ class LandscapeEvalCallback(EvalCallback):
                 if f:
                     self.logger.record(f"{s}_eval/mean_return", np.mean(s_returns))
                     self.logger.record(f"{s}_eval/mean_ep_length", np.mean(s_ep_lengths))
+            if freq_eval:
+                print(f"{self.run.id} {self.num_timesteps} {np.mean(freq_returns)}")
 
             # Dump log so the evaluation results are printed with the correct timestep
             self.logger.record("time/total_timesteps", self.num_timesteps, exclude="tensorboard")
