@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, List, Sequence, Tuple
 import time
 
 import submitit
+import tqdm
 
 
 def schedule(
@@ -28,31 +29,37 @@ def schedule(
     List
         The return values of all jobs.
     """
+    if len(fn_args) == 0:
+        return []
     assert num_parallel > 0
     running_jobs: Dict[int, submitit.Job] = {}
     results: Dict[int, Any] = {}
     next_job = 0  # index of the job to be started next
-    while True:
-        # Check running jobs for finished jobs, then save their results:
-        for i, job in list(running_jobs.items()):
-            if job.done():
-                results[i] = job.result()
-                del running_jobs[i]  # sus?
+    with tqdm.tqdm(total=len(fn_args)) as prog_bar:
+        while True:
+            # prog_bar.update(next_job)
+            # Check running jobs for finished jobs, then save their results:
+            for i, job in list(running_jobs.items()):
+                if job.done():
+                    results[i] = job.result()
+                    prog_bar.n = len(results)
+                    prog_bar.refresh()
+                    del running_jobs[i]
 
-        # Add new jobs:
-        assert len(running_jobs) <= num_parallel  # that's kind of the point
-        # not too many at once, don't overflow index when close to done with all jobs:
-        num_new_jobs = min(num_parallel - len(running_jobs), len(fn_args) - next_job)
-        if num_new_jobs > 0:
-            new_tasks = fn_args[next_job : next_job + num_new_jobs]
-            new_jobs = executor.map_array(fn, *zip(*new_tasks))
-            assert len(new_jobs) == num_new_jobs
-            for i in range(num_new_jobs):
-                running_jobs[next_job + i] = new_jobs[i]
-            next_job += num_new_jobs
+            # Add new jobs:
+            assert len(running_jobs) <= num_parallel  # that's kind of the point
+            # not too many at once, don't overflow index when close to done with all jobs:
+            num_new_jobs = min(num_parallel - len(running_jobs), len(fn_args) - next_job)
+            if num_new_jobs > 0:
+                new_tasks = fn_args[next_job : next_job + num_new_jobs]
+                new_jobs = executor.map_array(fn, *zip(*new_tasks))
+                assert len(new_jobs) == num_new_jobs
+                for i in range(num_new_jobs):
+                    running_jobs[next_job + i] = new_jobs[i]
+                next_job += num_new_jobs
 
-        # Do this until we have collected all results:
-        if len(results) >= len(fn_args):
-            break
-        time.sleep(polling_rate)
+            # Do this until we have collected all results:
+            if len(results) >= len(fn_args):
+                break
+            time.sleep(polling_rate)
     return [results[i] for i in range(len(fn_args))]

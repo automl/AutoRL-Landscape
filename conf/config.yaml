@@ -7,5 +7,5 @@ wandb:
   project: test_deterministic
 seeds: # seed for agents and environments
   - 166
-  # - 167
+  - 167
   # - 168

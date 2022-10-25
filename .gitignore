@@ -136,6 +136,7 @@ dmypy.json
 
 # wandb
 /wandb
+/wandb-old
 
 # idk
 /logs

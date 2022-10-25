@@ -70,10 +70,9 @@ class LandscapeEvalCallback(EvalCallback):
         self.eval_seed = conf.eval.seed
 
     def _on_training_start(self) -> None:
-        # self.logger.record("time/total_timesteps", 69, exclude="tensorboard")
-        # self.logger.dump(step=69)
-        # print(f"{self.num_timesteps}")
-        # self._evaluate(False, True, False, False)
+        # Evaluation right after loading (for nicer charts)
+        self.num_timesteps = self.model.num_timesteps
+        self._evaluate(False, True, False, False)
         pass
 
     def _on_step(self) -> bool:
@@ -176,7 +175,7 @@ class LandscapeEvalCallback(EvalCallback):
             for f, s, s_returns, s_ep_lengths in [
                 (freq_eval, "freq", freq_returns, freq_ep_lengths),
                 (ls_eval, "ls", ls_returns, ls_ep_lengths),
-                (final_eval, "final", final_returns, final_ep_lengths),
+                (final_final, "final", self.all_final_returns, self.all_final_ep_lengths),
             ]:
                 # always log mean value for easy visualization
                 if f:

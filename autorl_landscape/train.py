@@ -79,16 +79,16 @@ def run_phase(
 
     results = schedule(executor, _train_agent, tasks, conf.slurm.num_parallel, polling_rate=10)
 
-    # jobs = executor.map_array(_train_agent, *list(map(list, zip(*tasks))))
-    # results = [job.result() for job in jobs]
     run_ids, final_scores = zip(*results)
     run_ids = np.array(run_ids)
     final_scores = np.array(final_scores)
-    print(f"{run_ids=}")
-    print(f"{final_scores=}")
 
     best = choose_best_conf(run_ids, final_scores, save=phase_path)
-    print(f"Best run: {best}")
+
+    print(f"-- {phase_str.upper()} REPORT --")
+    print(f"{run_ids=}")
+    print(f"{final_scores=}")
+    print(f"Best run: {best}\n")
 
     return
 

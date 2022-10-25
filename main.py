@@ -2,7 +2,6 @@ from datetime import datetime
 from pathlib import Path
 
 import hydra
-import wandb
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.train import run_phase
