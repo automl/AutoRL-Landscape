@@ -8,6 +8,6 @@ wandb:
 seeds: # seed for agents and environments
   - 44
   - 45
-  # - 46
-  # - 47
-  # - 48
+  - 46
+  - 47
+  - 48

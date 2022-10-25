@@ -19,8 +19,7 @@ agent:
     nn_width: 256
 env:
   name: CartPole-v1
-  # total_timesteps: 100000
-  total_timesteps: 10000
+  total_timesteps: 100000
 eval:
   seed: 456
   freq_eval_interval: 5000
@@ -34,6 +33,5 @@ viz: # visualization (e.g. in wandb)
   max_ep_length: 500
   hist_bins: 50
 phases:
-  - 5000
-  # - 30000
-  # - 60000
+  - 30000
+  - 60000
