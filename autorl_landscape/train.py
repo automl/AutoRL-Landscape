@@ -30,7 +30,7 @@ def run_phase(
     t_final: int,
     date_str: str,
     phase_str: str,
-    init_agent: Optional[Path] = None,
+    ancestor: Optional[Path] = None,
 ) -> None:
     """
     Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
@@ -64,7 +64,7 @@ def run_phase(
         del c
 
         task = (
-            init_agent,
+            ancestor,
             conf,
             ls_conf,
             ls_conf_readable,
@@ -94,7 +94,7 @@ def run_phase(
 
 
 def _train_agent(
-    init_agent: Optional[Path],
+    ancestor: Optional[Path],
     conf: DictConfig,
     ls_conf: Dict[str, Any],
     ls_conf_readable: Dict[str, Any],
@@ -135,7 +135,7 @@ def _train_agent(
                     "timestamp": date_str,
                     "phase": phase_str,
                     "seed": seed,
-                    "init_agent": str(init_agent),
+                    "ancestor": str(ancestor),
                 },
             },
             sync_tensorboard=True,
@@ -160,16 +160,12 @@ def _train_agent(
         else:
             raise Exception("unknown agent")
         # Agent Instantiation:
-        if init_agent is None:
+        if ancestor is None:
             agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)
         else:
-            agent = AgentClass.custom_load(save_path=init_agent, seed=seed)
-            # # Load existing parameters of agent:
-            # agent.set_parameters(init_agent)
-            # TODO set ls specific stuff depending on what ls is
+            agent = AgentClass.custom_load(save_path=ancestor, seed=seed)
             agent.learning_rate = ls_conf["learning_rate"]
             agent.gamma = ls_conf["gamma"]
-            # # TODO set algorithm specific stuff like changing exploration factor in DQN
 
         landscape_eval_callback = LandscapeEvalCallback(
             conf=conf,

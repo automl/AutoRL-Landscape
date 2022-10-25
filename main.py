@@ -30,7 +30,7 @@ def main(conf: DictConfig) -> None:
 
         last_t_phase = 0
         original_total_timesteps = conf.env.total_timesteps
-        init_agent = None
+        ancestor = None
         for i, t_phase in enumerate(phases):
             phase_str = f"phase_{i}"
             run_phase(
@@ -39,9 +39,9 @@ def main(conf: DictConfig) -> None:
                 t_final=original_total_timesteps - last_t_phase,
                 date_str=date_str,
                 phase_str=phase_str,
-                init_agent=init_agent,
+                ancestor=ancestor,
             )
-            init_agent = (
+            ancestor = (
                 Path(f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}/best_agent")
                 .resolve()
                 .relative_to(Path.cwd())
@@ -55,7 +55,7 @@ def main(conf: DictConfig) -> None:
             t_final=conf.env.total_timesteps,
             date_str=date_str,
             phase_str="phase_0",
-            init_agent=None,
+            ancestor=None,
         )
 
 
