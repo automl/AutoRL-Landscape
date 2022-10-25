@@ -1,18 +1,20 @@
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Sequence, Tuple, TypeVar
 
 import time
 
 import submitit
 import tqdm
 
+T = TypeVar("T")
+
 
 def schedule(
     executor: submitit.AutoExecutor,
-    fn: Callable,
+    fn: Callable[..., T],
     fn_args: Sequence[Tuple[Any, ...]],  # [(x, y, z, ...)]
     num_parallel: int,
     polling_rate: float = 1.0,
-) -> List:
+) -> List[T]:
     """Start a limited number of jobs on the submitit cluster, returning results of all jobs when all jobs finish.
 
     executor : submitit.AutoExecutor

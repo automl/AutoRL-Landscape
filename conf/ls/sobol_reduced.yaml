@@ -11,11 +11,11 @@ ls:
         type: Constant
     - learning_rate:
         type: Log
-        base: 2
+        base: 1000
         lower: 0.0001
         upper: 0.1
     - neg_gamma:
         type: Log
-        base: 2
+        base: 5
         lower: 0.0001
         upper: 0.2 # or 0.5

@@ -11,7 +11,7 @@ from stable_baselines3.common.monitor import Monitor
 
 from autorl_landscape.custom_agents.custom_dqn import CustomDQN
 from autorl_landscape.util.callback import LandscapeEvalCallback
-from autorl_landscape.util.compare import choose_best_conf
+from autorl_landscape.util.compare import choose_best_conf, construct_2d
 from autorl_landscape.util.ls_sampler import construct_ls
 from autorl_landscape.util.schedule import schedule
 
@@ -63,31 +63,34 @@ def run_phase(
         }
         del c
 
-        task = (
-            ancestor,
-            conf,
-            ls_conf,
-            ls_conf_readable,
-            date_str,
-            phase_str,
-            t_ls,
-            t_final,
-            conf_idx,
-            phase_path,
-        )
-        tasks.append(task)
+        for seed in conf.seeds:
+            task = (
+                ancestor,
+                conf,
+                ls_conf,
+                ls_conf_readable,
+                seed,
+                date_str,
+                phase_str,
+                t_ls,
+                t_final,
+                conf_idx,
+                phase_path,
+            )
+            tasks.append(task)
 
-    results = schedule(executor, _train_agent, tasks, conf.slurm.num_parallel, polling_rate=10)
+    results = schedule(executor, _train_agent, tasks, num_parallel=conf.slurm.num_parallel, polling_rate=10)
 
-    run_ids, final_scores = zip(*results)
-    run_ids = np.array(run_ids)
-    final_scores = np.array(final_scores)
+    # conf_indices, run_ids, final_scores = zip(*results)
+    # run_ids = np.array(run_ids)
+    # final_scores = np.array(final_scores)
+    run_ids, final_returns = construct_2d(*zip(*results))
 
-    best = choose_best_conf(run_ids, final_scores, save=phase_path)
+    best = choose_best_conf(run_ids, final_returns, save=phase_path)
 
     print(f"-- {phase_str.upper()} REPORT --")
     print(f"{run_ids=}")
-    print(f"{final_scores=}")
+    print(f"{final_returns=}")
     print(f"Best run: {best}\n")
 
     return
@@ -98,94 +101,93 @@ def _train_agent(
     conf: DictConfig,
     ls_conf: Dict[str, Any],
     ls_conf_readable: Dict[str, Any],
+    seed: int,
     date_str: str,
     phase_str: str,
     t_ls: int,
     t_final: int,
-    conf_idx: int,
+    conf_index: int,
     phase_path: str,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[int, str, np.ndarray]:
     """
-    Train an agent over multiple seeds, evaluating ls_eval and final_eval.
+    Train an agent, evaluating ls_eval and final_eval.
 
+    :param ancestor: Path to a saved trained agent from which learning shall be commenced
     :param conf: Base configuration for agent, env, etc.
     :param ls_conf: Setting of the hyperparameters from the landscape
     :param ls_conf_readable: ls_conf but for logging
+    :param seed: seed for the Agent, for verifying performance of a configuration over multiple random initializations.
     :param date_str: Timestamp to distinguish this whole run (not just the current phase!), for saving
     :param phase_str: e.g. "phase_0", for saving
     :param t_ls: For `LandscapeEvalCallback`
+    :param t_final: For `LandscapeEvalCallback`
     :param conf_idx: For `LandscapeEvalCallback`
     :param phase_path: e.g. "phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
+
+    :return: wandb id of the run and all collected final performance values of the run. I.e. shape is
+    (conf.combo.eval.final_eval_episodes * conf.combo.final_eval_times,)
     """
-    run_ids = np.full((len(conf.seeds),), "", dtype=np.dtype("<U8"))
-    final_scores = np.zeros((len(conf.seeds),))
+    # run_ids = np.full((len(conf.seeds),), "", dtype=np.dtype("<U8"))
+    # final_scores = np.zeros((len(conf.seeds), conf.combo.final_eval_episodes * conf.combo.final_eval_times))
     # for one configuration, train multiple agents
-    for i, seed in enumerate(conf.seeds):
-        # Environment Creation
-        env = make_env(conf.env.name, seed)
-        eval_env = make_env(conf.env.name, seed)
 
-        # setup wandb
-        run = wandb.init(
-            project=conf.wandb.project,
-            config={
-                "ls": ls_conf_readable,
-                "conf": OmegaConf.to_object(conf),
-                "meta": {
-                    "timestamp": date_str,
-                    "phase": phase_str,
-                    "seed": seed,
-                    "ancestor": str(ancestor),
-                },
+    # Environment Creation
+    env = make_env(conf.env.name, seed)
+    eval_env = make_env(conf.env.name, seed)
+
+    # setup wandb
+    run = wandb.init(
+        project=conf.wandb.project,
+        config={
+            "ls": ls_conf_readable,
+            "conf": OmegaConf.to_object(conf),
+            "meta": {
+                "timestamp": date_str,
+                "phase": phase_str,
+                "seed": seed,
+                "ancestor": str(ancestor),
+                "conf_index": conf_index,
             },
-            sync_tensorboard=True,
-            monitor_gym=False,
-            save_code=False,
-        )
-        assert run is not None
+        },
+        sync_tensorboard=True,
+        monitor_gym=False,
+        save_code=False,
+    )
+    assert run is not None
 
-        # Basic agent configuration:
-        agent_kwargs = {
-            "env": env,
-            "verbose": 0,  # WARNING Higher than 0 breaks the console output logging with too long keys! : ) : ) : )
-            "tensorboard_log": f"runs/{run.id}",
-            "seed": seed,
-        }
+    # Basic agent configuration:
+    agent_kwargs = {
+        "env": env,
+        "verbose": 0,  # WARNING Higher than 0 breaks the console output logging with too long keys! : ) : ) : )
+        "tensorboard_log": f"runs/{run.id}",
+        "seed": seed,
+    }
 
-        # AgentClass: type
-        if conf.agent.name == "DQN":
-            AgentClass = CustomDQN
-        # elif conf.agent.name == "SAC":
-        #     AgentClass = SAC
-        else:
-            raise Exception("unknown agent")
-        # Agent Instantiation:
-        if ancestor is None:
-            agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)
-        else:
-            agent = AgentClass.custom_load(save_path=ancestor, seed=seed)
-            agent.learning_rate = ls_conf["learning_rate"]
-            agent.gamma = ls_conf["gamma"]
+    # AgentClass: type
+    if conf.agent.name == "DQN":
+        AgentClass = CustomDQN
+    # elif conf.agent.name == "SAC":
+    #     AgentClass = SAC
+    else:
+        raise Exception("unknown agent")
+    # Agent Instantiation:
+    if ancestor is None:
+        agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)
+    else:
+        agent = AgentClass.custom_load(save_path=ancestor, seed=seed)
+        agent.learning_rate = ls_conf["learning_rate"]
+        agent.gamma = ls_conf["gamma"]
 
-        landscape_eval_callback = LandscapeEvalCallback(
-            conf=conf,
-            eval_env=eval_env,
-            t_ls=t_ls,
-            t_final=t_final,
-            ls_model_save_path=f"{phase_path}/agents/{run.id}",
-            conf_idx=conf_idx,
-            run=run,
-            agent_seed=seed,
-            # eval_freq=conf.eval.eval_freq,
-            # n_eval_episodes=conf.env.n_eval_episodes,
-        )
-        # Wandb Logging and Evaluation
-        # callbacks = CallbackList([wandb_callback, landscape_eval_callback])
-        callbacks = landscape_eval_callback
+    landscape_eval_callback = LandscapeEvalCallback(
+        conf=conf,
+        eval_env=eval_env,
+        t_ls=t_ls,
+        t_final=t_final,
+        ls_model_save_path=f"{phase_path}/agents/{run.id}",
+        run=run,
+        agent_seed=seed,
+    )
+    agent.learn(total_timesteps=t_final, callback=landscape_eval_callback, reset_num_timesteps=False)
 
-        agent.learn(total_timesteps=t_final, callback=callbacks, reset_num_timesteps=False)
-
-        run.finish()
-        final_scores[i] = np.mean(landscape_eval_callback.all_final_returns)  # TODO actual metric for comparing runs
-        run_ids[i] = run.id
-    return run_ids, final_scores
+    run.finish()
+    return conf_index, run.id, landscape_eval_callback.all_final_returns.reshape(-1)

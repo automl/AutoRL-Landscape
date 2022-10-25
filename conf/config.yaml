@@ -1,11 +1,13 @@
 defaults:
-  - combo: testing
+  - combo: dqn_cartpole
   - ls: sobol_reduced
   - _self_
   - slurm: ???
 wandb:
-  project: test_deterministic
+  project: first_slurm
 seeds: # seed for agents and environments
-  - 166
-  - 167
-  # - 168
+  - 44
+  - 45
+  # - 46
+  # - 47
+  # - 48

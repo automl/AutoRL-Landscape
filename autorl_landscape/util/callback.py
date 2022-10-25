@@ -20,7 +20,6 @@ class LandscapeEvalCallback(EvalCallback):
         t_ls: int,
         t_final: int,
         ls_model_save_path: str,
-        conf_idx: int,
         run: Union[Run, RunDisabled],
         agent_seed: int,
         verbose: int = 1,
@@ -41,7 +40,6 @@ class LandscapeEvalCallback(EvalCallback):
         self.t_ls = t_ls
         self.done_ls_eval = False  # set to true after ls_eval
         self.ls_model_save_path = ls_model_save_path
-        self.conf_idx = conf_idx
         self.run = run
         self.agent_seed = agent_seed
 

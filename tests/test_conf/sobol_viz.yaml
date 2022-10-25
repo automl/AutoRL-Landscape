@@ -1,18 +1,23 @@
 ls:
   type: Sobol
   seed: 123 # landscape sampler rng
-  num_samples: 256 # needs to be a power of 2
+  num_samples: 1024 # needs to be a power of 2
   dims:
-    - large:
-        type: Integer
-        lower: 0
-        upper: 100
-    - small:
-        type: Integer
-        lower: 0
-        upper: 10
-    - log:
+    - nn_width:
+        type: Constant
+    - nn_length:
+        type: Constant
+    - learning_rate:
         type: Log
         base: 1000
-        lower: 1
-        upper: 1000
+        lower: 0.0001
+        upper: 0.1
+    - neg_gamma:
+        type: Log
+        base: 5
+        lower: 0.0001
+        upper: 0.2 # or 0.5
+agent:
+  zoo_optimal_ls:
+    nn_width: 256
+    nn_length: 3

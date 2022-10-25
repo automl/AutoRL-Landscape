@@ -1,9 +1,5 @@
 # @package _global_
 
-# defaults:
-#   - agent: dqn
-#   - env: cartpole
-
 agent:
   name: DQN
   hps:
@@ -23,14 +19,14 @@ agent:
     nn_width: 256
 env:
   name: CartPole-v1
-  total_timesteps: 100000
-  # total_timesteps: 1000
+  # total_timesteps: 100000
+  total_timesteps: 10000
 eval:
   seed: 456
-  freq_eval_interval: 1000
+  freq_eval_interval: 5000
   freq_eval_episodes: 10
-  ls_eval_episodes: 10
-  final_eval_episodes: 10
+  ls_eval_episodes: 20
+  final_eval_episodes: 20
   final_eval_start: 0.95 # 95% progress (of total_timesteps) is first final eval
   final_eval_times: 3 # 3 final evals from final_eval_start until total_timesteps
 viz: # visualization (e.g. in wandb)
@@ -38,3 +34,6 @@ viz: # visualization (e.g. in wandb)
   max_ep_length: 500
   hist_bins: 50
 phases:
+  - 5000
+  # - 30000
+  # - 60000
