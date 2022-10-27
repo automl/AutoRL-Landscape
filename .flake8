@@ -8,3 +8,4 @@ extend-exclude =
 extend-ignore =
     E203  # No whitespace before ':' in [x : y]
     E731  # No lambdas — too strict
+# vi: ft=dosini
