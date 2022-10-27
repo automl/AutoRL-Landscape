@@ -4,29 +4,32 @@ repos:
     hooks:
       - id: isort
         files: (autorl_landscape|tests|main.py)
-
   - repo: https://github.com/ambv/black
     rev: 22.10.0
     hooks:
       - id: black
         files: (autorl_landscape|tests|main.py)
         language_version: python3.10
-
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
       - id: pydocstyle
         files: (autorl_landscape|tests|main.py)
         additional_dependencies: ['toml'] # Needed to parse pyproject.toml
-
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v0.982
     hooks:
       - id: mypy
-        files: (autorl_landscape|tests|main.py)
-
+        # files: (autorl_landscape|tests|main.py)
   - repo: https://gitlab.com/pycqa/flake8
     rev: 5.0.4
     hooks:
       - id: flake8
         files: (autorl_landscape|tests|main.py)
+  - repo: meta
+    hooks:
+      - id: identity
+        files: (autorl_landscape|tests|main.py)
+        # args:
+        #   - --argument
+        #   - 'value'
