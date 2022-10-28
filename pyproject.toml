@@ -75,11 +75,17 @@ no_implicit_optional = true
 check_untyped_defs = true
 warn_return_any = true
 warn_unused_ignores = true
+mypy_path = "typings"
+plugins = "numpy.typing.mypy_plugin"
 
 # [[tool.mypy.overrides]]
-# module = ["setuptools.*", "gym"] # Add modules that give import errors here
-# ignore_missing_imports = true
-
-# [[tool.mypy.overrides]]
-# module = ["tests.*"]                # pytest uses decorators which are not typed in 3.8
+# module = ["pytest.*"]                # pytest uses decorators which are not typed in 3.8
 # disallow_untyped_decorators = false # decorators in testing are not all annotated
+
+[[tool.mypy.overrides]]
+module = ["autorl_landscape.custom_agents.*"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "matplotlib.*"
+ignore_missing_imports = true
