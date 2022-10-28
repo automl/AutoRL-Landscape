@@ -9,6 +9,7 @@ hydra.initialize(config_path="test_conf", version_base="1.1")
 
 
 def test_build_sobol_det() -> None:
+    """Checks that Sobol type sampler is seeded correctly."""
     conf = hydra.compose("sobol")
     df = construct_ls(conf)
     df2 = construct_ls(conf)
@@ -16,6 +17,7 @@ def test_build_sobol_det() -> None:
 
 
 def test_build_configspace_det() -> None:
+    """Checks that ConfigSpace type sampler is seeded correctly."""
     conf = hydra.compose("configspace")
     df = construct_ls(conf)
     df2 = construct_ls(conf)
@@ -35,8 +37,8 @@ def test_partial_sobol() -> None:
 def test_categorical() -> None:
     """Create lots of samples, then check whether the configurations only have the category values."""
     df = construct_ls(hydra.compose("categorical.yaml"))
-    assert np.all(np.isin(df.nn_width, [16, 32, 64, 128, 256]))
-    assert np.all(np.isin(df.foo, ["foo", "bar", "baz"]))
+    assert np.all(np.isin(df["nn_width"], [16, 32, 64, 128, 256]))
+    assert np.all(np.isin(df["foo"], ["foo", "bar", "baz"]))
 
 
 @pytest.mark.skip(reason="Visualization")
@@ -46,7 +48,7 @@ def test_sobol_pattern() -> None:
     fig = plt.figure(figsize=(16, 16))
     fig.tight_layout()
     ax = plt.axes()
-    ax.scatter(df.learning_rate, 1 - df.neg_gamma)
+    ax.scatter(df["learning_rate"], 1 - df["neg_gamma"])
     ax.set_xscale("log")
     ax.set_xlabel("learning rate")
     ax.set_ylabel("gamma")

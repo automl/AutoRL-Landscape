@@ -5,6 +5,7 @@ from collections import defaultdict
 
 import numpy as np
 import scipy.stats
+from numpy.typing import NDArray
 
 
 def construct_2d(indices: np.ndarray, *arrays: np.ndarray) -> Tuple[np.ndarray, ...]:
@@ -36,9 +37,8 @@ def construct_2d(indices: np.ndarray, *arrays: np.ndarray) -> Tuple[np.ndarray, 
     return tuple(rets)
 
 
-def choose_best_conf(run_ids: np.ndarray, final_returns: np.ndarray, save: Optional[str]) -> str:
-    """
-    Choose the best (ls) conf (row) as that which produced the best performance results on average.
+def choose_best_conf(run_ids: NDArray[Any], final_returns: NDArray[Any], save: Optional[str]) -> str:
+    """Choose the best (ls) conf (row) as that which produced the best performance results on average.
 
     Then choose best run from that configuration via maximum.
     Rows in `run_ids` and `final_mean_rewards` correspond to values of the same config, but from different seeds.
@@ -59,7 +59,7 @@ def choose_best_conf(run_ids: np.ndarray, final_returns: np.ndarray, save: Optio
     seed_iqms = scipy.stats.trim_mean(final_returns[best_conf], proportiontocut=0.25, axis=1)  # shape (n_seeds,)
     best_seed = np.argmax(seed_iqms)
 
-    best_id = run_ids[best_conf, best_seed]
+    best_id: str = run_ids[best_conf, best_seed]
 
     if save is not None:
         os.symlink(f"agents/{best_id}", f"{save}/best_agent", target_is_directory=True)

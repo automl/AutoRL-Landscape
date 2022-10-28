@@ -12,7 +12,7 @@ def test_null() -> None:
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    res = schedule(executor, None, [], 10, 1)
+    res: list = schedule(executor, lambda x: x, [], 10, 1)
     assert res == []
 
 
@@ -32,7 +32,6 @@ def test_adding_many_at_same_time() -> None:
     schedule(executor, time.sleep, [(0.1,) for _ in range(50)], num_parallel=10, polling_rate=1)
 
 
-# TODO test order of return values always correct
 def test_return_order() -> None:
     """Tests that return values are in the expected order."""
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")

@@ -22,6 +22,9 @@ def make_env(env_name: str, seed: int) -> gym.Env:
     env = Monitor(env)
     env.seed(seed)
     return env
+    # wrapped = Monitor(env)
+    # wrapped.seed(seed)
+    # return wrapped
 
 
 def run_phase(
@@ -32,11 +35,20 @@ def run_phase(
     phase_str: str,
     ancestor: Optional[Path] = None,
 ) -> None:
-    """
-    Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
+    """Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
 
     If initial_agent is given, start with its progress instead of training from 0.
     After this, train all agents until t_final env steps and evaluate here to choose the best configuration.
+
+    Args:
+        conf (DictConfig): Configuration for the experiment
+        t_ls (int): Number of steps from this phase's start until this phase's landscape evaluation
+        t_final (int): Number of steps from this phase's start until this phase's end
+        date_str (str): Timestamp that is equal for all phases of this experiment, used for saving
+        phase_str (str): e.g. phase_{i}, used for saving
+
+    Returns:
+        None
     """
     # path for saving agents of the current phase
     phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
@@ -109,8 +121,7 @@ def _train_agent(
     conf_index: int,
     phase_path: str,
 ) -> Tuple[int, str, np.ndarray]:
-    """
-    Train an agent, evaluating ls_eval and final_eval.
+    """Train an agent, evaluating ls_eval and final_eval.
 
     :param ancestor: Path to a saved trained agent from which learning shall be commenced
     :param conf: Base configuration for agent, env, etc.
@@ -172,7 +183,7 @@ def _train_agent(
         raise Exception("unknown agent")
     # Agent Instantiation:
     if ancestor is None:
-        agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)
+        agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore
     else:
         agent = AgentClass.custom_load(save_path=ancestor, seed=seed)
         agent.learning_rate = ls_conf["learning_rate"]

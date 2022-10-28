@@ -6,8 +6,7 @@ from scipy.stats.qmc import Sobol
 
 
 def construct_ls(conf: DictConfig) -> pd.DataFrame:
-    """
-    Build landscape according to the passed config and returns a `pd.DataFrame` with samples from it.
+    """Build landscape according to the passed config and returns a `pd.DataFrame` with samples from it.
 
     :param conf: `DictConfig` with ls dims, num of samples and optimal zoo hyperparameters for Constant dimensions.
     :return: `pd.DataFrame` with conf.ls.num_samples entries.

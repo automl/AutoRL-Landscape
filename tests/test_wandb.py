@@ -8,6 +8,11 @@ import wandb
 
 
 def wandb_dummy(index: int) -> None:
+    """Start a dummy wandb run that uploads random data for about 20 seconds.
+
+    Args:
+        index: Used to identify the run in wandb.
+    """
     run = wandb.init(
         project="test_overwhelm",
         config={
@@ -17,6 +22,7 @@ def wandb_dummy(index: int) -> None:
         monitor_gym=False,
         save_code=False,
     )
+    assert run is not None
     for i in range(20):
         wandb.log({"useless_data": np.random.random(1024), "x": i, "y": np.sqrt(i) + 0.1 * np.random.random()})
         time.sleep(1)

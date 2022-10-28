@@ -3,7 +3,12 @@ import numpy as np
 from autorl_landscape.util.compare import choose_best_conf, construct_2d
 
 
-def test_compare():
+def test_compare() -> None:
+    """Test comparing runs from multiple configurations, with multiple seeds.
+
+    The final chosen run should come from the set of runs with the configuration that yields the best IQM. From this
+    set, it should again be the run with the best IQM.
+    """
     # run_ids = np.array([["a", "b", "c", "d"], ["e", "f", "g", "h"], ["i", "j", "k", "l"]])
     run_ids = np.array([["a", "b"], ["c", "d"], ["e", "f"]])
     # mean thinks that row 2 is best, chooses conf 2 from there -> "d"
@@ -19,14 +24,16 @@ def test_compare():
     assert best_id == "e"
 
 
-def test_construct_2d():
+def test_construct_2d() -> None:
+    """Test that constructing the 2d array does not change the order of elements."""
     indices = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 3])
     arr = np.arange(12)
     ret = construct_2d(indices, arr)
     assert np.all(ret == arr.reshape(4, 3))
 
 
-def test_weird_data():
+def test_weird_data() -> None:
+    """Test constructing the 2d array with expected datatypes."""
     # run_ids = np.full((len(conf.seeds),), "", dtype=np.dtype("<U8"))
     indices = np.array([0, 0, 1, 1, 2, 2, 3, 3])
     ids = np.array([str(i) * 8 for i in range(8)], dtype=np.dtype("<U8"))
