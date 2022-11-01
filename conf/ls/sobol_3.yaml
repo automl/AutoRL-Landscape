@@ -1,7 +1,8 @@
+# @package _global_
+
 ls:
   type: Sobol
-  seed: 123 # landscape sampler rng
-  num_samples: 256 # needs to be a power of 2
+  # seed: 123 # landscape sampler rng
   dims:
     - nn_width:
         type: Constant
@@ -17,7 +18,7 @@ ls:
         base: 5
         lower: 0.0001
         upper: 0.2 # or 0.5
-agent:
-  zoo_optimal_ls:
-    nn_width: 256
-    nn_length: 3
+    - exploration:
+        type: Float
+        lower: 0.0
+        upper: 0.25

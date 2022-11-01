@@ -1,7 +1,5 @@
 ls:
   type: Sobol
-  seed: 123 # landscape sampler rng
-  num_samples: 4 # needs to be a power of 2
   dims:
     - foo:
         type: Constant
@@ -38,3 +36,6 @@ agent:
     baz: 3
     qux: 4
     corge: 5
+num_confs: 16
+seeds:
+  ls: 123

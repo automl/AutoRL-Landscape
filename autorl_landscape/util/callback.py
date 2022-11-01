@@ -13,6 +13,20 @@ from wandb.sdk.wandb_run import Run
 
 
 class LandscapeEvalCallback(EvalCallback):
+    """A callback for running evaluations at specific points during training, used for the phase algorithm.
+
+    Args:
+        conf: Hydra configuration, including information about how the different evaluations should happen, as well
+        as the seed for the eval_env.
+        eval_env: The env used for all evaluations. Is always reseeded.
+        t_ls: Number of steps until the landscape evaluation. Relative to start of current phase.
+        t_final: Number of steps until the finish. Relative to start of current phase.
+        ls_model_save_path: Location where the agent should be saved. E.g. {agent}/{env}/{date}/{phase}/agents/{id}
+        run: Wandb run, used for logging.
+        agent_seed: Seed for the agent. Used when saving the agent for trackably deterministic behaviour.
+        verbose: Probably unused.
+    """
+
     def __init__(
         self,
         conf: DictConfig,
@@ -24,20 +38,6 @@ class LandscapeEvalCallback(EvalCallback):
         agent_seed: int,
         verbose: int = 1,
     ):
-        """A callback for running evaluations at specific points during training, used for the phase algorithm.
-
-        Args:
-            self: [TODO:description]
-            conf: Hydra configuration, including information about how the different evaluations should happen, as well
-            as the seed for the eval_env.
-            eval_env: The env used for all evaluations. Is always reseeded.
-            t_ls: Number of steps until the landscape evaluation. Relative to start of current phase.
-            t_final: Number of steps until the finish. Relative to start of current phase.
-            ls_model_save_path: Location where the agent should be saved. E.g. {agent}/{env}/{date}/{phase}/agents/{id}
-            run: Wandb run, used for logging.
-            agent_seed: Seed for the agent. Used when saving the agent for trackably deterministic behaviour.
-            verbose: Probably unused.
-        """
         super().__init__(
             eval_env,
             None,
@@ -71,15 +71,15 @@ class LandscapeEvalCallback(EvalCallback):
         self.final_eval_episodes = conf.eval.final_eval_episodes
         self.t_final_evals = (
             np.linspace(
-                int(conf.env.total_timesteps * conf.eval.final_eval_start),
-                conf.env.total_timesteps,
+                int(conf.total_timesteps * conf.eval.final_eval_start),
+                conf.total_timesteps,
                 conf.eval.final_eval_times,
                 dtype=int,
             )
             + t_final
-            - conf.env.total_timesteps
+            - conf.total_timesteps
         )
-        self.eval_seed = conf.eval.seed
+        self.eval_seed = conf.seeds.eval
 
     def _on_training_start(self) -> None:
         assert self.model is not None

@@ -93,8 +93,7 @@ class CustomDQN(DQN):
         learning_starts: int = 0,
         log_interval: Optional[int] = None,
     ) -> RolloutReturn:
-        """
-        Collect experiences and store them into a ``ReplayBuffer``.
+        """Collect experiences and store them into a ``ReplayBuffer``.
 
         :param env: The training environment
         :param callback: Callback that will be called at each step
@@ -195,10 +194,7 @@ class CustomDQN(DQN):
 
     @classmethod
     def custom_load(cls, save_path: Path, seed: Optional[int] = None) -> "CustomDQN":
-        """
-        Load agent which will perform deterministically with further training, compared to the original agent that was
-        saved.
-        """
+        """Load agent which will perform deterministically with further training, like the originally saved agent."""
         loaded_agent: CustomDQN = CustomDQN.load(save_path / Path("model.zip"))
         loaded_agent.load_replay_buffer(save_path / Path("replay_buffer.pkl"))
         with open(save_path / Path("env.pkl"), "rb") as f:
@@ -235,9 +231,9 @@ class CustomDQN(DQN):
         return save_model
 
     def custom_save(self, locals: Dict[str, Any], save_path: str, seed: Optional[int] = None) -> None:
-        """
-        Save agent which will perform deterministically with further training after loading with `custom_load`, compared
-        to the original agent that was saved.
+        """Save the agent so that it will perform deterministically with further training.
+
+        Can be loaded afterwards with `custom_load`.
         """
         self.env.seed(seed)
         self.action_space.seed(seed)

@@ -1,13 +1,17 @@
-defaults:
-  - combo: dqn_cartpole
-  - ls: sobol_reduced
-  - _self_
+defaults: # bigger sub-configurations to swap around
+  - combo: ???
+  - ls: ???
   - slurm: ???
+  - phases: ???
+  - _self_
+
 wandb:
-  project: first_slurm
-seeds: # seed for agents and environments
-  - 44
-  - 45
-  - 46
-  - 47
-  - 48
+  project: test_exploration
+
+seeds:
+  agent: 44 # seed for first agent of a configuration
+  ls: 123 # seed for configuration sampler
+  eval: 456 # seed for eval env
+
+num_confs: ??? # number of landscape samples, needs to be power of 2
+num_seeds: ??? # seed for agents and environments

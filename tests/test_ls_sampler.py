@@ -1,7 +1,5 @@
 import hydra
-import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 
 from autorl_landscape.util.ls_sampler import construct_ls
 
@@ -26,6 +24,7 @@ def test_build_configspace_det() -> None:
 
 def test_partial_sobol() -> None:
     """Check that constant dimensions don't change the sampled dimensions."""
+    # TODO test this with all kinds of dims
     conf_pure = hydra.compose("only_sobol")  # 4 dims, none constant
     conf_dirty = hydra.compose("sobol")  # 4 non-constant dims, interspersed with constant dims.
     # I.e. df_dirty[1::2] are all the non-constant dims
@@ -39,17 +38,3 @@ def test_categorical() -> None:
     df = construct_ls(hydra.compose("categorical.yaml"))
     assert np.all(np.isin(df["nn_width"], [16, 32, 64, 128, 256]))
     assert np.all(np.isin(df["foo"], ["foo", "bar", "baz"]))
-
-
-@pytest.mark.skip(reason="Visualization")
-def test_sobol_pattern() -> None:
-    """Visualize with plt to inspect the sampled patterns."""
-    df = construct_ls(hydra.compose("sobol_viz"))
-    fig = plt.figure(figsize=(16, 16))
-    fig.tight_layout()
-    ax = plt.axes()
-    ax.scatter(df["learning_rate"], 1 - df["neg_gamma"])
-    ax.set_xscale("log")
-    ax.set_xlabel("learning rate")
-    ax.set_ylabel("gamma")
-    plt.show()

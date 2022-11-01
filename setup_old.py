@@ -1,3 +1,4 @@
+"""This is unused, see pyproject.toml for actual configuration!"""
 import os
 
 import setuptools

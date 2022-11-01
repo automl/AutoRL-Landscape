@@ -1,5 +1,7 @@
 # @package _global_
 
+env:
+  name: CartPole-v1
 agent:
   name: DQN
   hps:
@@ -17,12 +19,9 @@ agent:
     neg_gamma: 0.01
     nn_length: 3
     nn_width: 256
-env:
-  name: CartPole-v1
-  total_timesteps: 100000
 eval:
-  seed: 456
-  freq_eval_interval: 5000
+  # seed: 456
+  # freq_eval_interval: 5000
   freq_eval_episodes: 10
   ls_eval_episodes: 20
   final_eval_episodes: 20

@@ -29,7 +29,7 @@ def test_adding_many_at_same_time() -> None:
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    schedule(executor, time.sleep, [(0.1,) for _ in range(50)], num_parallel=10, polling_rate=1)
+    schedule(executor, time.sleep, [(0.1,) for _ in range(20)], num_parallel=5, polling_rate=1)
 
 
 def test_return_order() -> None:
@@ -40,7 +40,7 @@ def test_return_order() -> None:
     def subtract(a: int, b: int) -> int:
         return a - b
 
-    num_tasks = 50
+    num_tasks = 20
     ret = schedule(executor, subtract, [(2 * i, i) for i in range(num_tasks)], num_parallel=10, polling_rate=1)
     assert ret == list(range(num_tasks))
 

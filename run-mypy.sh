@@ -14,6 +14,5 @@ cd "$(dirname "$0")"
 # 'src/acme' to the Mypy search path.
 # We only want 'src' in the path so that Mypy
 # knows our modules by their fully qualified names.
-mypy main.py --namespace-packages
 mypy autorl_landscape --namespace-packages
 mypy tests --namespace-packages

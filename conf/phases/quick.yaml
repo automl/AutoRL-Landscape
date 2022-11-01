@@ -1,0 +1,12 @@
+# @package _global_
+
+# For quickly checking whether stuff works
+total_timesteps: 1000
+phases:
+  - 500
+agent:
+  hps:
+    learning_starts: 100 # start training quite early
+    train_freq: 50 # update policy much more often
+eval:
+  freq_eval_interval: 50

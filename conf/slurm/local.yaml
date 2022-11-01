@@ -1,8 +1,8 @@
 # @package _global_
 
 slurm:
-  cluster: debug
-  num_parallel: 1 # does not matter anyways?
+  cluster: local
+  num_parallel: 5
   update_parameters: # for executor.update_parameters()
     timeout_min: 1000
     slurm_partition: dev

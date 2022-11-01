@@ -1,7 +1,5 @@
 ls:
   type: Sobol
-  seed: 123 # landscape sampler rng
-  num_samples: 4 # needs to be a power of 2
   dims:
     - nn_width:
         type: Integer
@@ -21,3 +19,6 @@ ls:
         base: 2
         lower: 0.0001
         upper: 0.2 # or 0.5
+num_confs: 16
+seeds:
+  ls: 123

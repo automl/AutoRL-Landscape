@@ -1,7 +1,5 @@
 ls:
   type: ConfigSpace
-  seed: 123 # landscape sampler rng
-  num_samples: 2 # how many samples in the landscape
   dims:
     - nn_width:
         type: Categorical
@@ -40,3 +38,6 @@ agent:
     nn_width: 256
     foo: 42
     bar: 3.14
+num_confs: 16
+seeds:
+  ls: 123

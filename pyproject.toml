@@ -1,3 +1,20 @@
+[build-system]
+requires = ["setuptools"]
+
+[project]
+name = "autorl_landscape"
+description = "AutoRL Landscape"
+requires-python = ">=3.10"
+license.file = "LICENSE.txt"
+version = "0.1"
+
+[project.scripts]
+phases = "autorl_landscape.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["autorl_landscape*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"] # path to the test directory
 # addopts = "--cov=autorl_landscape" # Should be package name TODO commented this for vscode debugging pytest as a workaround
@@ -45,9 +62,10 @@ multi_line_output = 3 # https://pycqa.github.io/isort/docs/configuration/multi_l
 convention = "google"
 add-ignore = [ # http://www.pydocstyle.org/en/stable/error_codes.html
     "D100", # Missing docstring in public module
-    "D101", # Missing docstring in public class
+    # "D101", # Missing docstring in public class
     "D104", # Missing docstring in public package
     "D105", # Missing docstring in magic method
+    "D107", # Missing docstring in __init__ method
     # "D203", # 1 blank line required before class docstring
     # "D205", # 1 blank line required between summary and description
     # "D210", # No whitespaces allowed surrounding docstring text

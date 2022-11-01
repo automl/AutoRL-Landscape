@@ -3,9 +3,9 @@ from typing import Any, Dict, Optional, Tuple
 from pathlib import Path
 
 import gym
-import numpy as np
 import submitit
 import wandb
+from numpy.typing import NDArray
 from omegaconf import DictConfig, OmegaConf
 from stable_baselines3.common.monitor import Monitor
 
@@ -75,7 +75,7 @@ def run_phase(
         }
         del c
 
-        for seed in conf.seeds:
+        for seed in range(conf.seeds.agent, conf.seeds.agent + conf.num_seeds):
             task = (
                 ancestor,
                 conf,
@@ -120,7 +120,7 @@ def _train_agent(
     t_final: int,
     conf_index: int,
     phase_path: str,
-) -> Tuple[int, str, np.ndarray]:
+) -> Tuple[int, str, NDArray[Any]]:
     """Train an agent, evaluating ls_eval and final_eval.
 
     :param ancestor: Path to a saved trained agent from which learning shall be commenced

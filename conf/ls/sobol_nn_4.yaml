@@ -2,8 +2,7 @@
 
 ls:
   type: Sobol
-  seed: 123 # landscape sampler rng
-  num_samples: 4 # needs to be a power of 2
+  # seed: 123 # landscape sampler rng
   dims:
     - nn_width:
         type: Categorical # TODO implement this
