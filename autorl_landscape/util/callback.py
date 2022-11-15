@@ -161,7 +161,6 @@ class LandscapeEvalCallback(EvalCallback):
             # Add to current Logger
             # self.logger.record: logs time-dependent values to line plots
             # self.run.summary: logs just once for a run, save raw data
-            # self.run.log: logs histograms of return data for better visualization NOTE Only call this once?
             log_dict: Dict[str, Any] = {}
             if ls_eval:
                 self.run.summary["ls_eval/returns"] = ls_returns

@@ -2,7 +2,7 @@
 # from: https://jaredkhan.com/blog/mypy-pre-commit#step-2-creating-our-own-pre-commit-hook
 # to use local mypy instead of pre-commit's mypy
 
-# set -o errexit
+set -o errexit
 
 # Change directory to the project root directory.
 cd "$(dirname "$0")"

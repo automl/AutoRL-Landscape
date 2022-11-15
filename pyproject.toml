@@ -105,5 +105,5 @@ module = ["autorl_landscape.custom_agents.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["matplotlib.*", "ConfigSpace", "scipy.stats.qmc", "tqdm"]
+module = ["matplotlib.*", "ConfigSpace", "scipy.stats.qmc", "tqdm", "sklearn.*"]
 ignore_missing_imports = true

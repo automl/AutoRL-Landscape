@@ -37,8 +37,8 @@ def run_phase(
 ) -> None:
     """Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
 
-    If initial_agent is given, start with its progress instead of training from 0.
-    After this, train all agents until t_final env steps and evaluate here to choose the best configuration.
+    If initial_agent is given, start with its progress instead of training from 0. After this, train
+    all agents until t_final env steps and evaluate here to choose the best configuration.
 
     Args:
         conf (DictConfig): Configuration for the experiment
@@ -57,7 +57,7 @@ def run_phase(
     tasks = []
     executor.update_parameters(**conf.slurm.update_parameters)
 
-    for conf_idx, c in construct_ls(conf).iterrows():  # NOTE: iterrows() changes datatypes, we get only np.float64
+    for conf_idx, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
         ls_conf = {
             # [256, 256] translates to three layers:
             # Linear(i, 256), relu
@@ -127,8 +127,10 @@ def _train_agent(
     :param conf: Base configuration for agent, env, etc.
     :param ls_conf: Setting of the hyperparameters from the landscape
     :param ls_conf_readable: ls_conf but for logging
-    :param seed: seed for the Agent, for verifying performance of a configuration over multiple random initializations.
-    :param date_str: Timestamp to distinguish this whole run (not just the current phase!), for saving
+    :param seed: seed for the Agent, for verifying performance of a configuration over multiple
+    random initializations.
+    :param date_str: Timestamp to distinguish this whole run (not just the current phase!), for
+    saving
     :param phase_str: e.g. "phase_0", for saving
     :param t_ls: For `LandscapeEvalCallback`
     :param t_final: For `LandscapeEvalCallback`
