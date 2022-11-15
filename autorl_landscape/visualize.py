@@ -1,6 +1,7 @@
 from typing import Any
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
@@ -42,45 +43,46 @@ def visualize_data_samples(file: str) -> None:
     plt.show()
 
 
-def fit_gp(data: pd.DataFrame) -> Any:
-    """Put in data, fit GP, get grid of predictions back :)."""
-    X = data[["ls.learning_rate", "ls.gamma"]].to_numpy()
-    y = data["ls_eval/mean_return"].to_numpy()
-    gpr = GaussianProcessRegressor(RBF()).fit(X, y)
-    print(f"{gpr.score(X, y)=}")
-    return gpr
-
-
-def visualize_data(file: str) -> None:
-    """Visualize performance, given the hyperparameters.
+def visualize_data(file: str, fit_gp: bool) -> None:
+    """Get performance data from file and visualize it.
 
     Args:
         file: csv data file
+        fit_gp: if `True`, fit and visualize GP mean instead of just the raw mean
     """
     df = pd.read_csv(file, index_col=0)
+    fig = plt.figure(figsize=(16, 12))
     for i in range(3):
         phase_str = f"phase_{i}"
         phase_data = df[df["meta.phase"] == phase_str]
-        gpr = fit_gp(phase_data)
-        grid = np.meshgrid(np.logspace(-5, -1, 30), np.linspace(0.8, 0.9999, 30))
-        g0 = grid[0].reshape(-1)
-        g1 = grid[1].reshape(-1)
-        preds_mean, preds_std = gpr.predict(np.stack([g0, g1]).T, return_std=True)
+        if fit_gp:
+            X = phase_data[["ls.learning_rate", "ls.gamma"]].to_numpy()
+            y = phase_data["ls_eval/mean_return"].to_numpy()
+            gpr = GaussianProcessRegressor(RBF()).fit(X, y)
+            # gpr = GaussianProcessRegressor().fit(X, y)
+            print(f"{gpr.score(X, y)=}")
+            preds_mean, _ = gpr.predict(X, return_std=True)
+            plot_x = np.log10(phase_data["ls.learning_rate"])
+            plot_y = phase_data["ls.gamma"]
+            plot_z = preds_mean
+            zlabel = "GP Mean"
+            title = f"GP mean, fitted on mean performance data for phase {i}"
+        else:
+            plot_x = np.log10(phase_data["ls.learning_rate"])
+            plot_y = phase_data["ls.gamma"]
+            plot_z = phase_data["ls_eval/mean_return"]
+            zlabel = "LS Mean Return"
+            title = f"Raw mean performance data for phase {i}"
 
-        _ = plt.figure(figsize=(30, 30))
-        ax = plt.axes(projection="3d")
-        ax.plot_surface(
-            grid[0],
-            grid[1],
-            preds_mean.reshape(grid[0].shape),
-            # rstride=1,
-            # cstride=1,
-            cmap="viridis",
-            edgecolor="none",
-        )
-        # ax.yaxis.set_major_formatter(mticker.FuncFormatter(_log_tick_formatter))
-        plt.show()
-        break
+        ax = fig.add_subplot(1, 3, i + 1, projection="3d")
+        ax.plot_trisurf(plot_x, plot_y, plot_z, cmap="viridis", edgecolor="none")
+        ax.xaxis.set_major_formatter(mticker.FuncFormatter(_log_tick_formatter))
+        ax.set_zlim3d(0, 500)
+        ax.set_xlabel("Learning Rate", fontsize=12)
+        ax.set_ylabel("Gamma", fontsize=12)
+        ax.set_zlabel(zlabel, fontsize=12)
+        ax.set_title(title, fontsize=16)
+    plt.show()
 
 
 def _log_tick_formatter(val: Any, pos: Any = None) -> Any:

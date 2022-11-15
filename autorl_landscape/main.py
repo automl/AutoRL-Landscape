@@ -35,6 +35,11 @@ def main() -> None:
     parser_viz_samples.add_argument("file", help="csv file containing data of all runs")
     parser_viz_samples.set_defaults(func="viz_samples")
 
+    # phases viz gp ...
+    parser_viz_gp = viz_subparsers.add_parser("gp")
+    parser_viz_gp.add_argument("file", help="csv file containing data of all runs")
+    parser_viz_gp.set_defaults(func="viz_gp")
+
     # phases viz data ...
     parser_viz_data = viz_subparsers.add_parser("data")
     parser_viz_data.add_argument("file", help="csv file containing data of all runs")
@@ -56,8 +61,10 @@ def main() -> None:
         case "viz_samples":
             # visualize_samples(_prepare_hydra(args))
             visualize_data_samples(args.file)
+        case "viz_gp":
+            visualize_data(args.file, fit_gp=True)
         case "viz_data":
-            visualize_data(args.file)
+            visualize_data(args.file, fit_gp=False)
         case "dl":
             download_data(entity_name, args.project_name)
         case _:
