@@ -8,7 +8,11 @@ from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.train import run_phase
 from autorl_landscape.util.download import download_data
-from autorl_landscape.visualize import visualize_data, visualize_data_samples
+from autorl_landscape.visualize import (
+    visualize_data,
+    visualize_data_samples,
+    visualize_gp,
+)
 
 
 # @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -62,9 +66,9 @@ def main() -> None:
             # visualize_samples(_prepare_hydra(args))
             visualize_data_samples(args.file)
         case "viz_gp":
-            visualize_data(args.file, fit_gp=True)
+            visualize_gp(args.file)
         case "viz_data":
-            visualize_data(args.file, fit_gp=False)
+            visualize_data(args.file)
         case "dl":
             download_data(entity_name, args.project_name)
         case _:
