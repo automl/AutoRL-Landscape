@@ -1,10 +1,6 @@
-from typing import Any
-
 import ast
 
-import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
 
 
 def read_wandb_csv(file: str) -> pd.DataFrame:
@@ -24,11 +20,7 @@ def read_wandb_csv(file: str) -> pd.DataFrame:
     return df
 
 
-def broadcast_1d(a: NDArray[Any], shape: tuple[int, ...]) -> NDArray[Any]:
-    """Broadcasts (n,) to (n, m), copying values such that elements in a row are all equal.
-
-    Args:
-        a: (n,)-shaped array
-        shape: (n, m)
-    """
-    return np.broadcast_to(a.reshape((1, -1)).T, shape)
+# def train_or_load_gpr(x: NDArray[Any], y: NDArray[Any]) -> GaussianProcessClassifier:
+#     gpr = GaussianProcessClassifier(RBF())
+#     gpr.fit(x, y)
+#     return gpr

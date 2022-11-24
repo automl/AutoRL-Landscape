@@ -1,0 +1,46 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "phases dl",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "dl",
+        "test_exploration"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases viz data",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "viz",
+        "data",
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases viz gp",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "viz",
+        "gp",
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "--sample-percentage",
+        "25",
+        "--viz-samples"
+      ],
+      "justMyCode": false
+    }
+  ]
+}

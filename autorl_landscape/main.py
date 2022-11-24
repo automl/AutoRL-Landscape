@@ -42,6 +42,18 @@ def main() -> None:
     # phases viz gp ...
     parser_viz_gp = viz_subparsers.add_parser("gp")
     parser_viz_gp.add_argument("file", help="csv file containing data of all runs")
+    parser_viz_gp.add_argument(
+        "--sample-percentage",
+        "--sample",
+        dest="sample_percentage",
+        required=True,
+        type=int,
+        help="Percentage of eval episodes that should be used",
+    )
+    parser_viz_gp.add_argument("--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples")
+    parser_viz_gp.add_argument(
+        "--retrain", action="store_true", dest="retrain", help="Re-train GP, even if trained model exists on disk"
+    )
     parser_viz_gp.set_defaults(func="viz_gp")
 
     # phases viz data ...
@@ -66,7 +78,7 @@ def main() -> None:
             # visualize_samples(_prepare_hydra(args))
             visualize_data_samples(args.file)
         case "viz_gp":
-            visualize_gp(args.file)
+            visualize_gp(args.file, args.sample_percentage, args.viz_samples, args.retrain)
         case "viz_data":
             visualize_data(args.file)
         case "dl":

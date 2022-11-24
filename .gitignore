@@ -128,9 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Debugger
-/.vscode
-
 # Hydra
 /outputs
 
@@ -146,4 +143,5 @@ dmypy.json
 /phase_results
 /submitit
 /test_submitit
-Session.vim
+
+/data/**/*.pkl
