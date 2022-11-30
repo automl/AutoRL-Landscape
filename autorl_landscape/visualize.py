@@ -7,8 +7,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
+from numpy.typing import NDArray
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import ConstantKernel, Matern
 
 from autorl_landscape.util.data import read_wandb_csv
 
@@ -28,6 +29,14 @@ from autorl_landscape.util.data import read_wandb_csv
 #     ax.set_xlabel("learning rate")
 #     ax.set_ylabel("gamma")
 #     plt.show()
+
+
+def _log_base(x: NDArray, base: float) -> Any:
+    return np.log(x) / np.log(base)
+
+
+def _invert_ls_scaling(x: NDArray[Any], base: float, lower: float, upper: float) -> Any:
+    return _log_base(1 + (((x - lower) * (base - 1)) / (upper - lower)), base)
 
 
 def visualize_data_samples(file: str) -> None:
@@ -93,16 +102,24 @@ def visualize_gp(file: str, sample_percentage: int, viz_samples: bool, retrain: 
         df_file = Path(file)
         gp_file = df_file.parent / f"{df_file.stem}_gp_{sample_percentage}_{phase_str}.pkl"
 
-        y = np.array(list(phase_data["ls_eval/returns"]))  # (num_confs * num_seeds, num_evals) = (256 * 5, 20)
+        # y = np.array(list(phase_data["ls_eval/returns"]))  # (num_confs * num_seeds, num_evals) = (256 * 5, 20)
+        conf_groups = phase_data.groupby(["meta.conf_index", "ls.learning_rate", "ls.gamma"])
+        y = np.array(list(conf_groups["ls_eval/returns"].sum()))  # sum does concat (256, 100)
+        y_means = np.mean(y, axis=1)  # (256,)
+        y_stds = np.std(y, axis=1)
+        x = np.array(list(conf_groups.groups.keys()))[:, 1:]  # ls.learning_rate, ls.gamma
+        # scale to interval [0, 1], undoing the logarithmic biases:
+        x[:, 0] = _invert_ls_scaling(x[:, 0], 1000, 0.0001, 0.1)  # TODO get inversion params from data
+        x[:, 1] = _invert_ls_scaling(1 - x[:, 1], 5, 0.0001, 0.2)
         # use only a percentage of evals if requested:
-        if 0 <= sample_percentage and sample_percentage < 100:
-            rng = np.random.default_rng(0)
-            rng.shuffle(y, axis=1)
-            num_samples = round(y.shape[-1] * sample_percentage * 0.01)
-            y = y[:, :num_samples]
-            print(y.shape)
-        x = np.repeat(np.array(phase_data[["ls.learning_rate", "ls.gamma"]]), y.shape[-1], axis=0)
-        y = y.flatten()  # (25600,)
+        # if 0 <= sample_percentage and sample_percentage < 100:
+        #     rng = np.random.default_rng(0)
+        #     rng.shuffle(y, axis=1)
+        #     num_samples = round(y.shape[-1] * sample_percentage * 0.01)
+        #     y = y[:, :num_samples]
+        #     print(y.shape)
+        # x = np.repeat(np.array(phase_data[["ls.learning_rate", "ls.gamma"]]), y.shape[-1], axis=0)
+        # y = y.flatten()  # (25600,)
 
         # load or fit gaussian process:
         if gp_file.exists() and not retrain:
@@ -112,22 +129,29 @@ def visualize_gp(file: str, sample_percentage: int, viz_samples: bool, retrain: 
                 gpr, orig_score = pickle.load(f)
         else:
             # RBF with per-dimension length scales
-            # gpr = GaussianProcessRegressor(RBF([1.0, 1.0]) + WhiteKernel(), normalize_y=True, random_state=0)
-            gpr = GaussianProcessRegressor(RBF([1.0, 1.0]), alpha=1, normalize_y=True, random_state=0)
-            gpr.fit(x, y)
-            orig_score = gpr.score(x, y)
+            # gpr = GaussianProcessRegressor(normalize_y=True, random_state=0)
+            gpr = GaussianProcessRegressor(
+                ConstantKernel(1.0, constant_value_bounds="fixed")
+                * Matern([1.0, 1.0], length_scale_bounds=(0.01, 100), nu=0.5),
+                normalize_y=True,
+                alpha=1e-3 * y_stds**2,
+                random_state=0,
+            )
+            # gpr = GaussianProcessRegressor(RBF([1.0, 1.0]), alpha=y_stds, normalize_y=True, random_state=0)
+            gpr.fit(x, y_means)
+            orig_score = gpr.score(x, y_means)
             with open(gp_file, "wb") as f:
                 pickle.dump((gpr, orig_score), f)
 
-        score = gpr.score(x, y)
-        print(f"{score=} {orig_score=}")
+        score = gpr.score(x, y_means)
         assert math.isclose(score, orig_score), "R²-Score of loaded GPR differs from original score!"
-        grid_x, grid_y = np.meshgrid(np.logspace(-4, -1, num=grid_size, base=10), np.linspace(0.8, 1.0, num=grid_size))
+        grid_x, grid_y = np.meshgrid(np.linspace(0, 1, num=grid_size), np.linspace(0, 1, num=grid_size))
         grid_x = grid_x.flatten()
         grid_y = grid_y.flatten()
         grid = np.stack((grid_x, grid_y), axis=1)
 
         preds_mean, preds_std = gpr.predict(grid, return_std=True)
+        print(f"{score=} {np.mean(preds_std)=} {gpr.kernel_=}")
         # plot_x = np.log10(phase_data["ls.learning_rate"])
         # plot_y = phase_data["ls.gamma"]
         # plot_z = preds_mean
@@ -139,7 +163,7 @@ def visualize_gp(file: str, sample_percentage: int, viz_samples: bool, retrain: 
             cmap = "viridis" if opacity == 1.0 else None
             color = (0.5, 0.5, 0.5, opacity) if opacity < 1.0 else None
             ax.plot_surface(
-                np.log10(grid_x.reshape(grid_size, grid_size)),
+                grid_x.reshape(grid_size, grid_size),
                 grid_y.reshape(grid_size, grid_size),
                 z.reshape(grid_size, grid_size),
                 cmap=cmap,
@@ -148,8 +172,15 @@ def visualize_gp(file: str, sample_percentage: int, viz_samples: bool, retrain: 
                 shade=False,
             )
         if viz_samples:
-            ax.scatter(np.log10(x[:, 0]), x[:, 1], y)
-        ax.xaxis.set_major_formatter(mticker.FuncFormatter(_log_tick_formatter))
+            # ax.scatter(x[:, 0], x[:, 1], y_means)
+            num_evals = np.array(list(phase_data["ls_eval/returns"])).shape[1]  # hacky
+            ax.scatter(
+                _invert_ls_scaling(np.repeat(np.array(phase_data["ls.learning_rate"]), num_evals), 1000, 0.0001, 0.1),
+                _invert_ls_scaling(1 - np.repeat(np.array(phase_data["ls.gamma"]), num_evals), 5, 0.0001, 0.2),
+                y.flatten(),
+                alpha=0.1,
+            )
+        # ax.xaxis.set_major_formatter(mticker.FuncFormatter(_log_tick_formatter))
         ax.set_zlim3d(0, 500)
         ax.set_xlabel("Learning Rate", fontsize=12)
         ax.set_ylabel("Gamma", fontsize=12)
