@@ -101,9 +101,19 @@ plugins = "numpy.typing.mypy_plugin"
 # disallow_untyped_decorators = false # decorators in testing are not all annotated
 
 [[tool.mypy.overrides]]
-module = ["autorl_landscape.custom_agents.*"]
+module = [
+    "autorl_landscape.custom_agents.*",
+    "autorl_landscape.gp.heteroskedastic_gp",
+]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["matplotlib.*", "ConfigSpace", "scipy.stats.qmc", "tqdm", "sklearn.*"]
+module = [
+    "matplotlib.*",
+    "ConfigSpace",
+    "scipy.stats.qmc",
+    "tqdm",
+    "sklearn.*",
+    "tensorflow_probability",
+]
 ignore_missing_imports = true

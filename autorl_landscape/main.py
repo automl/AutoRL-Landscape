@@ -54,6 +54,7 @@ def main() -> None:
     parser_viz_gp.add_argument(
         "--retrain", action="store_true", dest="retrain", help="Re-train GP, even if trained model exists on disk"
     )
+    parser_viz_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
     parser_viz_gp.set_defaults(func="viz_gp")
 
     # phases viz data ...
@@ -78,7 +79,7 @@ def main() -> None:
             # visualize_samples(_prepare_hydra(args))
             visualize_data_samples(args.file)
         case "viz_gp":
-            visualize_gp(args.file, args.sample_percentage, args.viz_samples, args.retrain)
+            visualize_gp(args.file, args.sample_percentage, args.viz_samples, args.retrain, args.save)
         case "viz_data":
             visualize_data(args.file)
         case "dl":

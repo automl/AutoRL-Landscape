@@ -1,6 +1,9 @@
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from ConfigSpace import Categorical, ConfigurationSpace, Float, Uniform
+from numpy.typing import NDArray
 from omegaconf import DictConfig
 from scipy.stats.qmc import Sobol
 
@@ -68,3 +71,12 @@ def construct_ls(conf: DictConfig) -> pd.DataFrame:
         return pd.DataFrame(configs, columns=[dim_name for (dim_name, _) in dims])
     else:
         raise Exception(f"{conf.ls.type=} is not a known landscape type.")
+
+
+def _log_base(x: NDArray[Any], base: float) -> NDArray[Any]:
+    return np.log(x) / np.log(base)  # type: ignore[no-any-return]
+
+
+def invert_ls_log_scaling(x: NDArray[Any], base: float, lower: float, upper: float) -> NDArray[Any]:
+    """For Sobol ls type, Log dim type. Maps to [0, 1] interval."""
+    return _log_base(1 + (((x - lower) * (base - 1)) / (upper - lower)), base)
