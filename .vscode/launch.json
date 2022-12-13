@@ -36,8 +36,6 @@
         "viz",
         "gp",
         "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
-        "--sample-percentage",
-        "100",
         "--viz-samples",
         "--retrain"
       ],

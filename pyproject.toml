@@ -103,7 +103,7 @@ plugins = "numpy.typing.mypy_plugin"
 [[tool.mypy.overrides]]
 module = [
     "autorl_landscape.custom_agents.*",
-    "autorl_landscape.gp.heteroskedastic_gp",
+    "autorl_landscape.ls_models.heteroskedastic_gp",
 ]
 ignore_errors = true
 

@@ -1,9 +1,10 @@
 import ast
+from pathlib import Path
 
 import pandas as pd
 
 
-def read_wandb_csv(file: str) -> pd.DataFrame:
+def read_wandb_csv(file: Path) -> pd.DataFrame:
     """Read data from csv file, making sure to correctly parse some of the fields.
 
     Args:
