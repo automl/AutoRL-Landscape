@@ -22,16 +22,15 @@ repos:
   #     - id: mypy
   #       additional_dependencies: [hydra-core==1.2.0, stable-baselines3==1.6.0, submitit==1.4.5]
   #       files: (autorl_landscape|tests)
-  - repo: local
-    hooks:
-      - id: mypy
-        name: mypy
-        # entry: mypy main.py --config-file pyproject.toml
-        entry: ./run-mypy.sh
-        language: system
-        types: [python]
-        require_serial: true
-        verbose: true
+  # - repo: local
+  #   hooks:
+  #     - id: mypy
+  #       name: mypy
+  #       entry: ./run-mypy.sh
+  #       language: system
+  #       types: [python]
+  #       require_serial: true
+  #       verbose: true
   - repo: https://gitlab.com/pycqa/flake8
     rev: 5.0.4
     hooks:
