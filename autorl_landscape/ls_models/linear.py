@@ -19,7 +19,7 @@ class LinearLSModel(LSModel):
         self, data: DataFrame, dtype: type, y_col: str = "ls_eval/returns", y_bounds: tuple[float, float] | None = None
     ) -> None:
         super().__init__(data, dtype, y_col, y_bounds)
-        trim_y = trimboth(self.y, 0.025, axis=1)
+        trim_y = trimboth(self.y, 0.025, axis=1)  # 100 samples get trimmed down to 96
 
         self.iqm_model = LinearNDInterpolator(self.x, iqm(self.y, axis=1))
         # self.ci_upper_model = LinearNDInterpolator(self.x, self.y_mean + 1.96 * self.y_std)

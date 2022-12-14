@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from omegaconf import DictConfig, OmegaConf
 
+from autorl_landscape.analyze.concavity import reject_concavity
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.linear import LinearLSModel
 from autorl_landscape.train import run_phase
@@ -47,6 +48,7 @@ def main() -> None:
     parser_viz_gp.add_argument("--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples")
     parser_viz_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
     parser_viz_gp.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
+    parser_viz_gp.add_argument("--grid-length", dest="grid_length", type=int, default=51)
     parser_viz_gp.set_defaults(func="viz_gp")
 
     # phases viz linear ...
@@ -57,6 +59,7 @@ def main() -> None:
     )
     parser_viz_linear.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
     parser_viz_linear.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
+    parser_viz_linear.add_argument("--grid-length", dest="grid_length", type=int, default=51)
     parser_viz_linear.set_defaults(func="viz_linear")
 
     # phases viz triple-gp ...
@@ -69,12 +72,25 @@ def main() -> None:
         "--retrain", action="store_true", dest="retrain", help="Re-train GP, even if trained model exists on disk"
     )
     parser_viz_triple_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
+    parser_viz_triple_gp.add_argument("--grid-length", dest="grid_length", type=int, default=51)
     parser_viz_triple_gp.set_defaults(func="viz_triple_gp")
 
     # phases viz data ...
     parser_viz_data = viz_subparsers.add_parser("data")
     parser_viz_data.add_argument("file", help="csv file containing data of all runs")
     parser_viz_data.set_defaults(func="viz_data")
+
+    # phases ana ...
+    parser_ana = subparsers.add_parser("ana")
+    ana_subparsers = parser_ana.add_subparsers()
+    ana_subparsers.required = True
+
+    # phases ana concavity ...
+    parser_ana_concavity = ana_subparsers.add_parser("concavity")
+    parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_concavity.add_argument("--model", type=str, choices=["hsgp", "linear"], required=True)
+    parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=51)
+    parser_ana_concavity.set_defaults(func="ana_concavity")
 
     # phases dl ...
     entity_name = ENTITY
@@ -105,7 +121,7 @@ def main() -> None:
                     hsgp.save(model_folder)
 
                 ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                _ = hsgp.visualize(ax, viz_model=True, viz_samples=args.viz_samples)
+                _ = hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
             plt.show()
         case "viz_linear":
             file = Path(args.file)
@@ -122,16 +138,34 @@ def main() -> None:
                     hsgp.save(model_folder)
 
                 ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                _ = hsgp.visualize(ax, grid_length=51, viz_model=True, viz_samples=args.viz_samples)
+                _ = hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
             plt.show()
         case "viz_triple_gp":
             raise NotImplementedError
         case "viz_data":
             visualize_data(args.file)
+        case "ana_concavity":
+            file = Path(args.data)
+            df = read_wandb_csv(file)
+            phase_strs = sorted(df["meta.phase"].unique())
+            for i, phase_str in enumerate(phase_strs):
+                phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+                match args.model:
+                    case "hsgp":
+                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None)
+                        model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
+                        model.load(model_folder)
+                    case "linear":
+                        model = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                    case _:
+                        parser.print_help()
+                        return
+                reject_concavity(model, grid_length=args.grid_length)
         case "dl":
             download_data(entity_name, args.project_name)
         case _:
-            pass
+            parser.print_help()
+            return
 
 
 def _prepare_hydra(args: argparse.Namespace) -> DictConfig:
