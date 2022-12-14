@@ -10,8 +10,7 @@ from gpflow.models import SVGP
 from numpy.typing import NDArray
 from pandas import DataFrame
 
-from autorl_landscape.ls_models.gp import grid_space_2d
-from autorl_landscape.ls_models.ls_model import LSModel
+from autorl_landscape.ls_models.ls_model import LSModel, grid_space_2d
 
 # DTYPE = np.float64
 

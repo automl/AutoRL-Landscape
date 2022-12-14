@@ -8,6 +8,7 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
+from autorl_landscape.ls_models.linear import LinearLSModel
 from autorl_landscape.train import run_phase
 from autorl_landscape.util.data import read_wandb_csv
 from autorl_landscape.util.download import download_data
@@ -43,31 +44,32 @@ def main() -> None:
     # phases viz gp ...
     parser_viz_gp = viz_subparsers.add_parser("gp")
     parser_viz_gp.add_argument("file", help="csv file containing data of all runs")
-    # parser_viz_gp.add_argument(
-    #     "--sample-percentage",
-    #     "--sample",
-    #     dest="sample_percentage",
-    #     required=True,
-    #     type=int,
-    #     help="Percentage of eval episodes that should be used",
-    # )
     parser_viz_gp.add_argument("--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples")
-    # parser_viz_gp.add_argument(
-    #     "--retrain", action="store_true", dest="retrain", help="Re-train GP, even if trained model exists on disk"
-    # )
     parser_viz_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
     parser_viz_gp.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
     parser_viz_gp.set_defaults(func="viz_gp")
 
+    # phases viz linear ...
+    parser_viz_linear = viz_subparsers.add_parser("linear")
+    parser_viz_linear.add_argument("file", help="csv file containing data of all runs")
+    parser_viz_linear.add_argument(
+        "--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples"
+    )
+    parser_viz_linear.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
+    parser_viz_linear.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
+    parser_viz_linear.set_defaults(func="viz_linear")
+
     # phases viz triple-gp ...
-    parser_viz_gp = viz_subparsers.add_parser("triple-gp")
-    parser_viz_gp.add_argument("file", help="csv file containing data of all runs")
-    parser_viz_gp.add_argument("--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples")
-    parser_viz_gp.add_argument(
+    parser_viz_triple_gp = viz_subparsers.add_parser("triple-gp")
+    parser_viz_triple_gp.add_argument("file", help="csv file containing data of all runs")
+    parser_viz_triple_gp.add_argument(
+        "--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples"
+    )
+    parser_viz_triple_gp.add_argument(
         "--retrain", action="store_true", dest="retrain", help="Re-train GP, even if trained model exists on disk"
     )
-    parser_viz_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
-    parser_viz_gp.set_defaults(func="viz_triple_gp")
+    parser_viz_triple_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
+    parser_viz_triple_gp.set_defaults(func="viz_triple_gp")
 
     # phases viz data ...
     parser_viz_data = viz_subparsers.add_parser("data")
@@ -85,10 +87,8 @@ def main() -> None:
         case "run":
             start_phases(_prepare_hydra(args))
         case "viz_samples":
-            # visualize_samples(_prepare_hydra(args))
             visualize_data_samples(args.file)
         case "viz_gp":
-            # visualize_ls_model(args.file, args.sample_percentage, args.viz_samples, args.retrain, args.save)
             file = Path(args.file)
             df = read_wandb_csv(file)
             fig = plt.figure(figsize=(16, 12))
@@ -106,6 +106,23 @@ def main() -> None:
 
                 ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
                 _ = hsgp.visualize(ax, viz_model=True, viz_samples=args.viz_samples)
+            plt.show()
+        case "viz_linear":
+            file = Path(args.file)
+            df = read_wandb_csv(file)
+            fig = plt.figure(figsize=(16, 12))
+            phase_strs = sorted(df["meta.phase"].unique())
+            for i, phase_str in enumerate(phase_strs):
+                model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
+                phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+                hsgp = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                if args.load:
+                    hsgp.load(model_folder)
+                if args.save and not args.load:
+                    hsgp.save(model_folder)
+
+                ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
+                _ = hsgp.visualize(ax, grid_length=51, viz_model=True, viz_samples=args.viz_samples)
             plt.show()
         case "viz_triple_gp":
             raise NotImplementedError

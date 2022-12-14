@@ -4,8 +4,8 @@ import os
 from collections import defaultdict
 
 import numpy as np
-import scipy.stats
 from numpy.typing import NDArray
+from scipy.stats import trim_mean
 
 
 def construct_2d(indices: np.ndarray, *arrays: np.ndarray) -> Tuple[np.ndarray, ...]:
@@ -37,6 +37,11 @@ def construct_2d(indices: np.ndarray, *arrays: np.ndarray) -> Tuple[np.ndarray, 
     return tuple(rets)
 
 
+def iqm(x: NDArray[Any], axis: int | None = None):
+    """Calculate the interquartile mean (IQM) of x."""
+    return trim_mean(x, proportiontocut=0.25, axis=axis)
+
+
 def choose_best_conf(run_ids: NDArray[Any], final_returns: NDArray[Any], save: Optional[str]) -> str:
     """Choose the best (ls) conf (row) as that which produced the best performance results on average.
 
@@ -51,12 +56,10 @@ def choose_best_conf(run_ids: NDArray[Any], final_returns: NDArray[Any], save: O
     # IQMs for each configuration (aggregating over both different seeds and their evaluations)
     assert run_ids.shape == final_returns.shape[0:-1]
     num_confs = final_returns.shape[0]
-    conf_iqms = scipy.stats.trim_mean(
-        final_returns.reshape(num_confs, -1), proportiontocut=0.25, axis=1
-    )  # shape (n_confs,)
+    conf_iqms = iqm(final_returns.reshape(num_confs, -1), axis=1)  # shape (n_confs,)
     best_conf = np.argmax(conf_iqms)
     # IQMs for each seed of the best configuration (aggregating only over their evaluations)
-    seed_iqms = scipy.stats.trim_mean(final_returns[best_conf], proportiontocut=0.25, axis=1)  # shape (n_seeds,)
+    seed_iqms = iqm(final_returns[best_conf], axis=1)  # shape (n_seeds,)
     best_seed = np.argmax(seed_iqms)
 
     best_id: str = run_ids[best_conf, best_seed]

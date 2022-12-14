@@ -60,18 +60,22 @@ class LSModel(ABC):
         # all groups (configurations):
         self.x = np.array(list(conf_groups.groups.keys()), dtype=self.dtype)[:, 1:]  # (num_confs, num_ls_dims)
         # all evaluations (y values) for a group (configuration):
-        self.y = np.array(list(conf_groups[self.y_info.name].sum()), dtype=self.dtype)  # (num_confs, 100)
+        y = np.array(list(conf_groups[self.y_info.name].sum()), dtype=self.dtype)  # (num_confs, 100)
 
         # scale ls dims into [0, 1] interval:
         for i in range(len(self.dim_info)):
             transformer = self.dim_info[i].ls_to_unit
             self.x[:, i] = transformer(self.x[:, i])
         # scale y into [0, 1] interval:
-        self.y = self.y_info.ls_to_unit(self.y)
+        self.y = self.y_info.ls_to_unit(y)
 
         # just all the single evaluation values, not grouped (but still scaled to [0, 1] interval):
         self.x_samples = np.repeat(self.x, self.y.shape[1], axis=0)
         self.y_samples = self.y.reshape(-1, 1)
+
+        # statistical information about each configuration assuming a normal distribution:
+        self.y_mean = self.y.mean(axis=1)
+        self.y_std = self.y.std(axis=1)
 
         # self.ls_dims = [k for k in df.keys() if k.startswith("ls.")]
         # for phase_str in sorted(data["meta.phase"].unique()):
@@ -80,11 +84,6 @@ class LSModel(ABC):
     def get_ls_dim_names(self) -> list[str]:
         """Get the list of hyperparameter landscape dimension names."""
         return [di.name for di in self.dim_info]
-
-    @abstractmethod
-    def fit(self) -> None:
-        """Fit the model to its data."""
-        raise NotImplementedError
 
     @abstractmethod
     def get_upper(self, x: NDArray[Any]) -> NDArray[Any]:
@@ -101,7 +100,7 @@ class LSModel(ABC):
         """Return an lower estimate of y at the position(s) x."""
         raise NotImplementedError
 
-    def visualize(self, ax: Axes, grid_length: int = 50, viz_model: bool = True, viz_samples: bool = True) -> Axes:
+    def visualize(self, ax: Axes, grid_length: int = 51, viz_model: bool = True, viz_samples: bool = True) -> Axes:
         """Visualize the model over the whole landscape.
 
         Args:
