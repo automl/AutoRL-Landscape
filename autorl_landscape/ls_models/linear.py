@@ -21,11 +21,11 @@ class LinearLSModel(LSModel):
         super().__init__(data, dtype, y_col, y_bounds)
         trim_y = trimboth(self.y, 0.025, axis=1)  # 100 samples get trimmed down to 96
 
-        self.iqm_model = LinearNDInterpolator(self.x, iqm(self.y, axis=1))
+        self.iqm_model = LinearNDInterpolator(self.x, self.y_iqm)
         # self.ci_upper_model = LinearNDInterpolator(self.x, self.y_mean + 1.96 * self.y_std)
         # self.ci_lower_model = LinearNDInterpolator(self.x, self.y_mean - 1.96 * self.y_std)
-        self.ci_upper_model = LinearNDInterpolator(self.x, np.max(trim_y, axis=1))
-        self.ci_lower_model = LinearNDInterpolator(self.x, np.min(trim_y, axis=1))
+        self.ci_upper_model = LinearNDInterpolator(self.x, self.y_ci_upper)
+        self.ci_lower_model = LinearNDInterpolator(self.x, self.y_ci_lower)
 
         # Use "near" interpolation for the borders where "linear" outputs nans:
         self.iqm_model_nearest = NearestNDInterpolator(self.x, iqm(self.y, axis=1))

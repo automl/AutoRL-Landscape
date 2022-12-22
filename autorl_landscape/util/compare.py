@@ -37,7 +37,7 @@ def construct_2d(indices: np.ndarray, *arrays: np.ndarray) -> Tuple[np.ndarray, 
     return tuple(rets)
 
 
-def iqm(x: NDArray[Any], axis: int | None = None):
+def iqm(x: NDArray[Any], axis: int | None = None) -> NDArray[Any]:
     """Calculate the interquartile mean (IQM) of x."""
     return trim_mean(x, proportiontocut=0.25, axis=axis)
 

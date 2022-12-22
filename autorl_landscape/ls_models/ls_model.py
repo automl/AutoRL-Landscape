@@ -9,7 +9,9 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import FuncFormatter
 from numpy.typing import NDArray
 from pandas import DataFrame
+from scipy.stats import trimboth
 
+from autorl_landscape.util.compare import iqm
 from autorl_landscape.util.ls_sampler import DimInfo
 
 
@@ -74,8 +76,12 @@ class LSModel(ABC):
         self.y_samples = self.y.reshape(-1, 1)
 
         # statistical information about each configuration assuming a normal distribution:
-        self.y_mean = self.y.mean(axis=1)
-        self.y_std = self.y.std(axis=1)
+        self.y_mean = np.mean(self.y, axis=1, keepdims=True)
+        self.y_std = np.std(self.y, axis=1, keepdims=True)
+        self.y_iqm = iqm(self.y, axis=1).reshape(-1, 1)
+        y_trim = trimboth(self.y, 0.025, axis=1)  # remove highest and lowest 2.5% of data, so we get middle 95%
+        self.y_ci_upper = np.max(y_trim, axis=1, keepdims=True)
+        self.y_ci_lower = np.min(y_trim, axis=1, keepdims=True)
 
         # self.ls_dims = [k for k in df.keys() if k.startswith("ls.")]
         # for phase_str in sorted(data["meta.phase"].unique()):
@@ -100,7 +106,7 @@ class LSModel(ABC):
         """Return an lower estimate of y at the position(s) x."""
         raise NotImplementedError
 
-    def visualize(self, ax: Axes, grid_length: int = 51, viz_model: bool = True, viz_samples: bool = True) -> Axes:
+    def visualize(self, ax: Axes, grid_length: int = 51, viz_model: bool = True, viz_samples: bool = True) -> None:
         """Visualize the model over the whole landscape.
 
         Args:
@@ -115,18 +121,18 @@ class LSModel(ABC):
         num_ls_dims = len(self.get_ls_dim_names())
         match num_ls_dims:
             case 1:
-                return self._visualize_1d(ax, grid_length, viz_model, viz_samples)
+                self._visualize_1d(ax, grid_length, viz_model, viz_samples)
             case 2:
-                return self._visualize_2d(ax, grid_length, viz_model, viz_samples)
+                self._visualize_2d(ax, grid_length, viz_model, viz_samples)
             case n:
                 if n < 1:
                     raise Exception(f"Cannot visualize landscape with {n} dimensions!")
-                return self._visualize_nd(ax, grid_length, viz_model, viz_samples)
+                self._visualize_nd(ax, grid_length, viz_model, viz_samples)
 
-    def _visualize_1d(self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True) -> Axes:
+    def _visualize_1d(self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True) -> None:
         raise NotImplementedError
 
-    def _visualize_2d(self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True) -> Axes:
+    def _visualize_2d(self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True) -> None:
         # assume we have 3d projection Axes:
         # ax.set_zlim3d(self.y_info.lower, self.y_info.upper)
         ax.set_zlim3d(0, 1)
@@ -181,9 +187,9 @@ class LSModel(ABC):
         ax.xaxis.set_major_formatter(FuncFormatter(self.dim_info[0].tick_formatter))
         ax.yaxis.set_major_formatter(FuncFormatter(self.dim_info[1].tick_formatter))
         ax.zaxis.set_major_formatter(FuncFormatter(self.y_info.tick_formatter))
-        return ax
+        return
 
-    def _visualize_nd(self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True) -> Axes:
+    def _visualize_nd(self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True) -> None:
         raise NotImplementedError
 
     @abstractmethod

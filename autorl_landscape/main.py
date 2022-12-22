@@ -146,7 +146,7 @@ def main() -> None:
                     hsgp.save(model_folder)
 
                 ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                _ = hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
+                hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
             plt.show()
         case "viz_linear":
             file = Path(args.file)
@@ -156,17 +156,35 @@ def main() -> None:
             for i, phase_str in enumerate(phase_strs):
                 model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
                 phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-                hsgp = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                interpolator = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
                 if args.load:
-                    hsgp.load(model_folder)
+                    interpolator.load(model_folder)
                 if args.save and not args.load:
-                    hsgp.save(model_folder)
+                    interpolator.save(model_folder)
 
                 ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                _ = hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
+                interpolator.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
             plt.show()
         case "viz_triple_gp":
-            raise NotImplementedError
+            file = Path(args.file)
+            df = read_wandb_csv(file)
+            fig = plt.figure(figsize=(16, 12))
+            phase_strs = sorted(df["meta.phase"].unique())
+            for i, phase_str in enumerate(phase_strs):
+                model_folder = file.parent / f"{file.stem}_triple_gp_{phase_str}"
+                phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+                triple_gp = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
+                # if args.load:
+                #     triple_gp.load(model_folder)
+                # else:
+                #     triple_gp.fit(100, verbose=True)
+                # if args.save and not args.load:
+                #     triple_gp.save(model_folder)
+                triple_gp.fit()
+
+                ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
+                triple_gp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
+            plt.show()
         case "viz_data":
             visualize_data(args.file)
         case "ana_concavity":
@@ -184,6 +202,7 @@ def main() -> None:
                         model = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
                     case "triple-gp":
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model.fit()
                     case _:
                         parser.print_help()
                         return
