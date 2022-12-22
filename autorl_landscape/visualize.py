@@ -3,25 +3,28 @@ from typing import Any
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
+from omegaconf import DictConfig
 
 from autorl_landscape.util.data import read_wandb_csv
+from autorl_landscape.util.ls_sampler import construct_ls
 
-# def visualize_samples(conf: DictConfig) -> None:
-#     """Visualize with plt to inspect the sampled patterns.
 
-#     Args:
-#         conf: Hydra configuration
-#     """
-#     print("VIZ ONLY DOES LR AND GAMMA FOR NOW")
-#     df = construct_ls(conf)
-#     fig = plt.figure(figsize=(16, 16))
-#     fig.tight_layout()
-#     ax = plt.axes()
-#     ax.scatter(df["learning_rate"], 1 - df["neg_gamma"])
-#     ax.set_xscale("log")
-#     ax.set_xlabel("learning rate")
-#     ax.set_ylabel("gamma")
-#     plt.show()
+def visualize_sobol_samples(conf: DictConfig) -> None:
+    """Visualize with plt to inspect the sampled patterns.
+
+    Args:
+        conf: Hydra configuration
+    """
+    print("VIZ ONLY DOES LR AND GAMMA FOR NOW")
+    df = construct_ls(conf)
+    fig = plt.figure(figsize=(16, 16))
+    fig.tight_layout()
+    ax = plt.axes()
+    ax.scatter(df["learning_rate"], 1 - df["neg_gamma"])
+    ax.set_xscale("log")
+    ax.set_xlabel("learning rate")
+    ax.set_ylabel("gamma")
+    plt.show()
 
 
 def visualize_data_samples(file: str) -> None:

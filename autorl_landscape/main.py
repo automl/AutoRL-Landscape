@@ -10,10 +10,15 @@ from omegaconf import DictConfig, OmegaConf
 from autorl_landscape.analyze.concavity import reject_concavity
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.linear import LinearLSModel
+from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
 from autorl_landscape.util.data import read_wandb_csv
 from autorl_landscape.util.download import download_data
-from autorl_landscape.visualize import visualize_data, visualize_data_samples
+from autorl_landscape.visualize import (
+    visualize_data,
+    visualize_data_samples,
+    visualize_sobol_samples,
+)
 
 ENTITY = "kwie98"
 
@@ -27,23 +32,32 @@ def main() -> None:
     subparsers.required = True
 
     # phases run ...
-    parser_run = subparsers.add_parser("run")
+    parser_run = subparsers.add_parser("run", help="run an experiment using the hydra config in conf/")
     parser_run.add_argument("overrides", nargs="*", help="Hydra overrides")
     parser_run.set_defaults(func="run")
 
     # phases viz ...
-    parser_viz = subparsers.add_parser("viz")
+    parser_viz = subparsers.add_parser("viz", help="visualize different views of a hyperparameter landscape dataset")
     viz_subparsers = parser_viz.add_subparsers()
     viz_subparsers.required = True
 
+    # phases viz sobol ...
+    parser_viz_sobol = viz_subparsers.add_parser("sobol", help="view the sobol space as defined in the hydra config")
+    parser_viz_sobol.add_argument("overrides", nargs="*", help="Hydra overrides")
+    parser_viz_sobol.set_defaults(func="viz_sobol")
+
     # phases viz samples ...
-    parser_viz_samples = viz_subparsers.add_parser("samples")
+    parser_viz_samples = viz_subparsers.add_parser(
+        "samples", help="view the sobol space from a hyperparameter landscape dataset"
+    )
     # parser_viz_samples.add_argument("overrides", nargs="*", help="Hydra overrides")
     parser_viz_samples.add_argument("file", help="csv file containing data of all runs")
     parser_viz_samples.set_defaults(func="viz_samples")
 
     # phases viz gp ...
-    parser_viz_gp = viz_subparsers.add_parser("gp")
+    parser_viz_gp = viz_subparsers.add_parser(
+        "gp", help="view a GP model trained on a hyperparameter landscape dataset"
+    )
     parser_viz_gp.add_argument("file", help="csv file containing data of all runs")
     parser_viz_gp.add_argument("--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples")
     parser_viz_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
@@ -52,7 +66,9 @@ def main() -> None:
     parser_viz_gp.set_defaults(func="viz_gp")
 
     # phases viz linear ...
-    parser_viz_linear = viz_subparsers.add_parser("linear")
+    parser_viz_linear = viz_subparsers.add_parser(
+        "linear", help="view a linear interpolation of select data from a hyperparameter landscape dataset"
+    )
     parser_viz_linear.add_argument("file", help="csv file containing data of all runs")
     parser_viz_linear.add_argument(
         "--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples"
@@ -63,7 +79,9 @@ def main() -> None:
     parser_viz_linear.set_defaults(func="viz_linear")
 
     # phases viz triple-gp ...
-    parser_viz_triple_gp = viz_subparsers.add_parser("triple-gp")
+    parser_viz_triple_gp = viz_subparsers.add_parser(
+        "triple-gp", help="view a triple-GP model trained on a hyperparameter landscape dataset"
+    )
     parser_viz_triple_gp.add_argument("file", help="csv file containing data of all runs")
     parser_viz_triple_gp.add_argument(
         "--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples"
@@ -76,19 +94,23 @@ def main() -> None:
     parser_viz_triple_gp.set_defaults(func="viz_triple_gp")
 
     # phases viz data ...
-    parser_viz_data = viz_subparsers.add_parser("data")
+    parser_viz_data = viz_subparsers.add_parser(
+        "data", help="view all datapoints from a hyperparameter landscape dataset"
+    )
     parser_viz_data.add_argument("file", help="csv file containing data of all runs")
     parser_viz_data.set_defaults(func="viz_data")
 
     # phases ana ...
-    parser_ana = subparsers.add_parser("ana")
+    parser_ana = subparsers.add_parser(
+        "ana", help="analyze different aspects of data from a hyperparameter landscape dataset"
+    )
     ana_subparsers = parser_ana.add_subparsers()
     ana_subparsers.required = True
 
     # phases ana concavity ...
-    parser_ana_concavity = ana_subparsers.add_parser("concavity")
+    parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
     parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_concavity.add_argument("--model", type=str, choices=["hsgp", "linear"], required=True)
+    parser_ana_concavity.add_argument("--model", type=str, choices=["hsgp", "linear", "triple-gp"], required=True)
     parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=51)
     parser_ana_concavity.set_defaults(func="ana_concavity")
 
@@ -98,12 +120,15 @@ def main() -> None:
     parser_dl.add_argument("project_name", type=str)
     parser_dl.set_defaults(func="dl")
 
+    # handle args:
     args = parser.parse_args()
     match args.func:
         case "run":
             start_phases(_prepare_hydra(args))
         case "viz_samples":
             visualize_data_samples(args.file)
+        case "viz_sobol":
+            visualize_sobol_samples(_prepare_hydra(args))
         case "viz_gp":
             file = Path(args.file)
             df = read_wandb_csv(file)
@@ -157,6 +182,8 @@ def main() -> None:
                         model.load(model_folder)
                     case "linear":
                         model = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                    case "triple-gp":
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
                     case _:
                         parser.print_help()
                         return
