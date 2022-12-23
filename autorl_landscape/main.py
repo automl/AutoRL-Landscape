@@ -1,10 +1,16 @@
+from typing import Any, Iterable, TypeVar
+
 import argparse
 from datetime import datetime
+from itertools import zip_longest
 from pathlib import Path
 
 import hydra
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.artist import Artist
+from matplotlib.backend_bases import PickEvent
+from matplotlib.figure import Figure
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.analyze.concavity import reject_concavity
@@ -144,58 +150,8 @@ def main() -> None:
                     viz_samples=args.viz_samples,
                     viz_model_samples=args.viz_model_samples,
                 )
-            fig.legend(handles=fig.axes[0].collections)
+            _add_legend(fig)
             plt.show()
-        # case "viz_hsgp":
-        #     file = Path(args.data)
-        #     df = read_wandb_csv(file)
-        #     fig = plt.figure(figsize=(16, 12))
-        #     phase_strs = sorted(df["meta.phase"].unique())
-        #     for i, phase_str in enumerate(phase_strs):
-        #         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
-        #         phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-        #         hsgp = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None)
-        #         if args.load:
-        #             hsgp.load(model_folder)
-        #         else:
-        #             hsgp.fit(100, verbose=True)
-        #         if args.save and not args.load:
-        #             hsgp.save(model_folder)
-
-        #         ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-        #         hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
-        #     plt.show()
-        # case "viz_linear":
-        #     file = Path(args.data)
-        #     df = read_wandb_csv(file)
-        #     fig = plt.figure(figsize=(16, 12))
-        #     phase_strs = sorted(df["meta.phase"].unique())
-        #     for i, phase_str in enumerate(phase_strs):
-        #         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
-        #         phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-        #         interpolator = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
-        #         if args.load:
-        #             interpolator.load(model_folder)
-        #         if args.save and not args.load:
-        #             interpolator.save(model_folder)
-
-        #         ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-        #         interpolator.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
-        #     plt.show()
-        # case "viz_triple_gp":
-        #     file = Path(args.data)
-        #     df = read_wandb_csv(file)
-        #     fig = plt.figure(figsize=(16, 12))
-        #     phase_strs = sorted(df["meta.phase"].unique())
-        #     for i, phase_str in enumerate(phase_strs):
-        #         model_folder = file.parent / f"{file.stem}_triple_gp_{phase_str}"
-        #         phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-        #         triple_gp = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
-        #         triple_gp.fit()
-
-        #         ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-        #         triple_gp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
-        #     plt.show()
         case "viz_data":
             visualize_data(args.data)
         case "ana_concavity":
@@ -248,6 +204,34 @@ def _add_model_viz_args(parser: argparse.ArgumentParser) -> None:
     group_sl.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
     group_sl.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
     parser.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+
+
+def _add_legend(fig: Figure) -> None:
+    legend = fig.legend(handles=fig.axes[0].collections)
+    foo = _transpose([ax.collections for ax in fig.axes])
+    leg_to_fig: dict[Artist, list[Any]] = {}
+    for leg_text, fig_arts in zip(legend.get_texts(), foo):
+        leg_text.set_picker(True)
+        leg_to_fig[leg_text] = fig_arts
+
+    def on_pick(event: PickEvent):
+        leg_text = event.artist
+        fig_artists = leg_to_fig[leg_text]
+        visible = not fig_artists[0].get_visible()
+        for fig_artist in fig_artists:
+            fig_artist.set_visible(visible)
+        leg_text.set_alpha(1.0 if visible else 0.2)
+        fig.canvas.draw()
+
+    fig.canvas.mpl_connect("pick_event", on_pick)
+
+
+T = TypeVar("T")
+
+
+def _transpose(ll: Iterable[Iterable[T]]) -> list[list[T]]:
+    """Transposes lists of lists (or other things you can iterate over)."""
+    return list(map(list, zip_longest(*ll, fillvalue=None)))
 
 
 def start_phases(conf: DictConfig) -> None:
