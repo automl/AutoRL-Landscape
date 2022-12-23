@@ -10,7 +10,7 @@ from gpflow.models import SVGP
 from numpy.typing import NDArray
 from pandas import DataFrame
 
-from autorl_landscape.ls_models.ls_model import LSModel, grid_space_2d
+from autorl_landscape.ls_models.ls_model import LSModel, VizInfo, grid_space_2d
 
 # DTYPE = np.float64
 
@@ -160,6 +160,16 @@ class HSGPModel(LSModel):
     def get_lower(self, x: NDArray[Any]) -> NDArray[Any]:
         """Return the mean estimate minus 1.96 standard deviations of y at the position(s) x."""
         return self._get_whatever(x, -1.96)
+
+    def get_sample_viz_infos(self, include_rest: bool) -> list[VizInfo]:
+        """Return a single `VizInfo` for data points used for training the model.
+
+        Since this model trains on all data points, this method is trivial.
+
+        Args:
+            include_rest: Ignored.
+        """
+        return [VizInfo(self.x_samples, self.y_samples, "training data points", "red", None, None)]
 
     def save(self, model_save_path: Path) -> None:
         """Save the model to disk."""

@@ -21,6 +21,7 @@ from autorl_landscape.visualize import (
 )
 
 ENTITY = "kwie98"
+DEFAULT_GRID_LENGTH = 51
 
 
 # @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -51,53 +52,35 @@ def main() -> None:
         "samples", help="view the sobol space from a hyperparameter landscape dataset"
     )
     # parser_viz_samples.add_argument("overrides", nargs="*", help="Hydra overrides")
-    parser_viz_samples.add_argument("file", help="csv file containing data of all runs")
+    parser_viz_samples.add_argument("data", help="csv file containing data of all runs")
     parser_viz_samples.set_defaults(func="viz_samples")
 
     # phases viz gp ...
-    parser_viz_gp = viz_subparsers.add_parser(
-        "gp", help="view a GP model trained on a hyperparameter landscape dataset"
+    parser_viz_hsgp = viz_subparsers.add_parser(
+        "hsgp", help="view a GP model trained on a hyperparameter landscape dataset"
     )
-    parser_viz_gp.add_argument("file", help="csv file containing data of all runs")
-    parser_viz_gp.add_argument("--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples")
-    parser_viz_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
-    parser_viz_gp.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
-    parser_viz_gp.add_argument("--grid-length", dest="grid_length", type=int, default=51)
-    parser_viz_gp.set_defaults(func="viz_gp")
+    _add_model_viz_args(parser_viz_hsgp)
+    parser_viz_hsgp.set_defaults(func="viz_hsgp")
 
     # phases viz linear ...
     parser_viz_linear = viz_subparsers.add_parser(
         "linear", help="view a linear interpolation of select data from a hyperparameter landscape dataset"
     )
-    parser_viz_linear.add_argument("file", help="csv file containing data of all runs")
-    parser_viz_linear.add_argument(
-        "--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples"
-    )
-    parser_viz_linear.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
-    parser_viz_linear.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
-    parser_viz_linear.add_argument("--grid-length", dest="grid_length", type=int, default=51)
+    _add_model_viz_args(parser_viz_linear)
     parser_viz_linear.set_defaults(func="viz_linear")
 
     # phases viz triple-gp ...
     parser_viz_triple_gp = viz_subparsers.add_parser(
         "triple-gp", help="view a triple-GP model trained on a hyperparameter landscape dataset"
     )
-    parser_viz_triple_gp.add_argument("file", help="csv file containing data of all runs")
-    parser_viz_triple_gp.add_argument(
-        "--viz-samples", action="store_true", dest="viz_samples", help="Also visualize samples"
-    )
-    parser_viz_triple_gp.add_argument(
-        "--retrain", action="store_true", dest="retrain", help="Re-train GP, even if trained model exists on disk"
-    )
-    parser_viz_triple_gp.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
-    parser_viz_triple_gp.add_argument("--grid-length", dest="grid_length", type=int, default=51)
+    _add_model_viz_args(parser_viz_triple_gp)
     parser_viz_triple_gp.set_defaults(func="viz_triple_gp")
 
     # phases viz data ...
     parser_viz_data = viz_subparsers.add_parser(
         "data", help="view all datapoints from a hyperparameter landscape dataset"
     )
-    parser_viz_data.add_argument("file", help="csv file containing data of all runs")
+    parser_viz_data.add_argument("data", help="csv file containing data of all runs")
     parser_viz_data.set_defaults(func="viz_data")
 
     # phases ana ...
@@ -111,11 +94,10 @@ def main() -> None:
     parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
     parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
     parser_ana_concavity.add_argument("--model", type=str, choices=["hsgp", "linear", "triple-gp"], required=True)
-    parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=51)
+    parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_concavity.set_defaults(func="ana_concavity")
 
     # phases dl ...
-    entity_name = ENTITY
     parser_dl = subparsers.add_parser("dl")
     parser_dl.add_argument("project_name", type=str)
     parser_dl.set_defaults(func="dl")
@@ -126,67 +108,96 @@ def main() -> None:
         case "run":
             start_phases(_prepare_hydra(args))
         case "viz_samples":
-            visualize_data_samples(args.file)
+            visualize_data_samples(args.data)
         case "viz_sobol":
             visualize_sobol_samples(_prepare_hydra(args))
-        case "viz_gp":
-            file = Path(args.file)
+        case "viz_hsgp" | "viz_linear" | "viz_triple_gp":
+            file = Path(args.data)
             df = read_wandb_csv(file)
             fig = plt.figure(figsize=(16, 12))
             phase_strs = sorted(df["meta.phase"].unique())
             for i, phase_str in enumerate(phase_strs):
-                model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
                 phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-                hsgp = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None)
-                if args.load:
-                    hsgp.load(model_folder)
-                else:
-                    hsgp.fit(100, verbose=True)
-                if args.save and not args.load:
-                    hsgp.save(model_folder)
-
+                match args.func:
+                    case "viz_hsgp":
+                        model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
+                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None)
+                        if args.load:
+                            model.load(model_folder)
+                        else:
+                            model.fit(100, verbose=True)
+                        if args.save and not args.load:
+                            model.save(model_folder)
+                    case "viz_linear":
+                        model = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                    case "viz_triple_gp":
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model.fit()
+                    case _:
+                        parser.print_help()
+                        return
                 ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
+                model.visualize(
+                    ax,
+                    grid_length=args.grid_length,
+                    viz_model=True,
+                    viz_samples=args.viz_samples,
+                    viz_model_samples=args.viz_model_samples,
+                )
+            fig.legend(handles=fig.axes[0].collections)
             plt.show()
-        case "viz_linear":
-            file = Path(args.file)
-            df = read_wandb_csv(file)
-            fig = plt.figure(figsize=(16, 12))
-            phase_strs = sorted(df["meta.phase"].unique())
-            for i, phase_str in enumerate(phase_strs):
-                model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
-                phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-                interpolator = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
-                if args.load:
-                    interpolator.load(model_folder)
-                if args.save and not args.load:
-                    interpolator.save(model_folder)
+        # case "viz_hsgp":
+        #     file = Path(args.data)
+        #     df = read_wandb_csv(file)
+        #     fig = plt.figure(figsize=(16, 12))
+        #     phase_strs = sorted(df["meta.phase"].unique())
+        #     for i, phase_str in enumerate(phase_strs):
+        #         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
+        #         phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+        #         hsgp = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None)
+        #         if args.load:
+        #             hsgp.load(model_folder)
+        #         else:
+        #             hsgp.fit(100, verbose=True)
+        #         if args.save and not args.load:
+        #             hsgp.save(model_folder)
 
-                ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                interpolator.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
-            plt.show()
-        case "viz_triple_gp":
-            file = Path(args.file)
-            df = read_wandb_csv(file)
-            fig = plt.figure(figsize=(16, 12))
-            phase_strs = sorted(df["meta.phase"].unique())
-            for i, phase_str in enumerate(phase_strs):
-                model_folder = file.parent / f"{file.stem}_triple_gp_{phase_str}"
-                phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-                triple_gp = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
-                # if args.load:
-                #     triple_gp.load(model_folder)
-                # else:
-                #     triple_gp.fit(100, verbose=True)
-                # if args.save and not args.load:
-                #     triple_gp.save(model_folder)
-                triple_gp.fit()
+        #         ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
+        #         hsgp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
+        #     plt.show()
+        # case "viz_linear":
+        #     file = Path(args.data)
+        #     df = read_wandb_csv(file)
+        #     fig = plt.figure(figsize=(16, 12))
+        #     phase_strs = sorted(df["meta.phase"].unique())
+        #     for i, phase_str in enumerate(phase_strs):
+        #         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
+        #         phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+        #         interpolator = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+        #         if args.load:
+        #             interpolator.load(model_folder)
+        #         if args.save and not args.load:
+        #             interpolator.save(model_folder)
 
-                ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                triple_gp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
-            plt.show()
+        #         ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
+        #         interpolator.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
+        #     plt.show()
+        # case "viz_triple_gp":
+        #     file = Path(args.data)
+        #     df = read_wandb_csv(file)
+        #     fig = plt.figure(figsize=(16, 12))
+        #     phase_strs = sorted(df["meta.phase"].unique())
+        #     for i, phase_str in enumerate(phase_strs):
+        #         model_folder = file.parent / f"{file.stem}_triple_gp_{phase_str}"
+        #         phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+        #         triple_gp = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
+        #         triple_gp.fit()
+
+        #         ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
+        #         triple_gp.visualize(ax, grid_length=args.grid_length, viz_model=True, viz_samples=args.viz_samples)
+        #     plt.show()
         case "viz_data":
-            visualize_data(args.file)
+            visualize_data(args.data)
         case "ana_concavity":
             file = Path(args.data)
             df = read_wandb_csv(file)
@@ -208,7 +219,7 @@ def main() -> None:
                         return
                 reject_concavity(model, grid_length=args.grid_length)
         case "dl":
-            download_data(entity_name, args.project_name)
+            download_data(ENTITY, args.project_name)
         case _:
             parser.print_help()
             return
@@ -219,6 +230,24 @@ def _prepare_hydra(args: argparse.Namespace) -> DictConfig:
     conf = hydra.compose("config", overrides=args.overrides)
     print(OmegaConf.to_yaml(conf))
     return conf
+
+
+def _add_model_viz_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("data", help="csv file containing data of all runs")
+    group_samples = parser.add_mutually_exclusive_group()
+    group_samples.add_argument(
+        "--viz-samples", action="store_true", dest="viz_samples", help="Visualize all performance samples"
+    )
+    group_samples.add_argument(
+        "--viz-model-samples",
+        action="store_true",
+        dest="viz_model_samples",
+        help="Only visualize samples that were used to train the model",
+    )
+    group_sl = parser.add_mutually_exclusive_group()
+    group_sl.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
+    group_sl.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
+    parser.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
 
 
 def start_phases(conf: DictConfig) -> None:

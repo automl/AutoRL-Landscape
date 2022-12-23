@@ -27,7 +27,7 @@
       "justMyCode": false
     },
     {
-      "name": "phases viz gp",
+      "name": "phases viz hsgp",
       "type": "python",
       "request": "launch",
       "program": "/data/conda/envs/ma10/bin/phases",
@@ -35,7 +35,8 @@
       "args": [
         "viz",
         "gp",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "--viz-model-samples"
       ],
       "justMyCode": false
     },
@@ -48,7 +49,8 @@
       "args": [
         "viz",
         "linear",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "--viz-model-samples"
       ],
       "justMyCode": false
     },
@@ -61,7 +63,8 @@
       "args": [
         "viz",
         "triple-gp",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "--viz-model-samples"
       ],
       "justMyCode": false
     },
