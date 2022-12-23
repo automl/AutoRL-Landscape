@@ -1,7 +1,5 @@
 from typing import Any
 
-from pathlib import Path
-
 import gpflow
 from numpy.typing import NDArray
 from pandas import DataFrame
@@ -65,11 +63,3 @@ class TripleGPModel(LSModel):
         rest = [VizInfo(self.x_samples, self.y_samples, "data points", None, 0.025, None)] if include_rest else []
         rest.extend(trainers)
         return rest
-
-    def save(self, model_save_path: Path) -> None:
-        """Save the model to disk."""
-        return super().save(model_save_path)
-
-    def load(self, model_save_path: Path) -> None:
-        """Load the model from disk."""
-        return super().load(model_save_path)

@@ -3,7 +3,6 @@ from typing import Any
 
 from ast import literal_eval
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -244,16 +243,6 @@ class LSModel(ABC):
     def _visualize_nd(
         self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True, highlight_used: bool = True
     ) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def save(self, model_save_path: Path) -> None:
-        """Save the model to disk."""
-        raise NotImplementedError
-
-    @abstractmethod
-    def load(self, model_save_path: Path) -> None:
-        """Load the model from disk."""
         raise NotImplementedError
 
 

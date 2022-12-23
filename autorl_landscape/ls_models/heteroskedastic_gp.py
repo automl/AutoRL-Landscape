@@ -18,7 +18,6 @@ from autorl_landscape.ls_models.ls_model import LSModel, VizInfo, grid_space_2d
 LOWER = 0
 UPPER = 500
 # INDUCE_GRID_LENGTH = 10
-EPOCHS = 500
 
 
 class HSGPModel(LSModel):
@@ -76,20 +75,20 @@ class HSGPModel(LSModel):
         )
 
         self.model.compiled_predict_f = tf.function(
-            lambda Xnew: self.model.predict_f(Xnew, full_cov=False),
+            lambda x: self.model.predict_f(x, full_cov=False),
             input_signature=[tf.TensorSpec(shape=[None, 2], dtype=self.dtype)],
         )
         self.model.compiled_predict_y = tf.function(
-            lambda Xnew: self.model.predict_y(Xnew, full_cov=False),
+            lambda x: self.model.predict_y(x, full_cov=False),
             input_signature=[tf.TensorSpec(shape=[None, 2], dtype=self.dtype)],
         )
-        # self.model.compiled_predict_f_samples = tf.function(
-        #     lambda Xnew, num_samples: self.model.predict_f_samples(Xnew, num_samples, full_cov=False),
-        #     input_signature=[
-        #         tf.TensorSpec(shape=[None, 2], dtype=self.dtype),
-        #         tf.TensorSpec(shape=[None], dtype=np.int64),
-        #     ],
-        # )
+        self.model.compiled_predict_f_samples = tf.function(
+            lambda x, num_samples: self.model.predict_f_samples(x, num_samples, full_cov=False),
+            input_signature=[
+                tf.TensorSpec(shape=[None, 2], dtype=self.dtype),
+                tf.TensorSpec(shape=[None], dtype=np.int64),
+            ],
+        )
 
         # Train model:
         dataset = tf.data.Dataset.from_tensor_slices((self.x_samples, self.y_samples))

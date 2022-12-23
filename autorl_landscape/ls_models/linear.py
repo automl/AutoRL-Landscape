@@ -1,7 +1,5 @@
 from typing import Any
 
-from pathlib import Path
-
 import numpy as np
 from numpy.typing import NDArray
 from pandas import DataFrame
@@ -65,11 +63,3 @@ class LinearLSModel(LSModel):
         rest = [VizInfo(self.x_samples, self.y_samples, "data points", None, 0.025, None)] if include_rest else []
         rest.extend(trainers)
         return rest
-
-    def save(self, model_save_path: Path) -> None:
-        """Save the model to disk."""
-        raise NotImplementedError
-
-    def load(self, model_save_path: Path) -> None:
-        """Load the model from disk."""
-        raise NotImplementedError
