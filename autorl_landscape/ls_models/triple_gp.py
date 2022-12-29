@@ -4,7 +4,7 @@ import gpflow
 from numpy.typing import NDArray
 from pandas import DataFrame
 
-from autorl_landscape.ls_models.ls_model import LSModel, VizInfo
+from autorl_landscape.ls_models.ls_model import LSModel, Visualization
 
 
 class TripleGPModel(LSModel):
@@ -19,6 +19,19 @@ class TripleGPModel(LSModel):
     ) -> None:
         super().__init__(data, dtype, y_col, y_bounds)
         gpflow.config.set_default_float(dtype)  # WARNING Global!
+        self._viz_infos = [
+            Visualization(
+                "scatter", self.x, self.y_ci_upper, "97.5%-percentile", {"color": "red", "alpha": 0.75, "marker": "v"}
+            ),
+            Visualization(
+                "scatter", self.x, self.y_iqm, "interquartile mean", {"color": "red", "alpha": 0.75, "marker": "D"}
+            ),
+            Visualization(
+                "scatter", self.x, self.y_ci_lower, "2.5%-percentile", {"color": "red", "alpha": 0.75, "marker": "^"}
+            ),
+            Visualization("scatter", self.x_samples, self.y_samples, "data points", {"alpha": 0.025}),
+            # no samples are directly used to train the models
+        ]
 
     def fit(self):
         """Fit the three GPs to IQM, upper and lower CI."""
@@ -45,21 +58,3 @@ class TripleGPModel(LSModel):
         """Return the lower CI estimate of y at the position(s) x."""
         f_mean, _ = self.lower_model.predict_f(x)
         return f_mean.numpy()
-
-    def get_sample_viz_infos(self, include_rest: bool) -> list[VizInfo]:
-        """Return visualization info(s) for samples used for training the model.
-
-        Since this model uses IQM and quantiles of the samples, no actual samples are actually used for training.
-
-        Args:
-            include_rest: Whether to include a `VizInfo` for samples that are not used by the model. Always the first
-                VizInfo in the list.
-        """
-        trainers = [
-            VizInfo(self.x, self.y_ci_upper, "97.5%-percentile", "red", 0.75, "v"),
-            VizInfo(self.x, self.y_iqm, "interquartile mean", "red", 0.75, "D"),
-            VizInfo(self.x, self.y_ci_lower, "2.5%-quantile", "red", 0.75, "^"),
-        ]
-        rest = [VizInfo(self.x_samples, self.y_samples, "data points", None, 0.025, None)] if include_rest else []
-        rest.extend(trainers)
-        return rest

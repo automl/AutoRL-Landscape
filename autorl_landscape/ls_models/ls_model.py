@@ -15,15 +15,17 @@ from autorl_landscape.util.ls_sampler import DimInfo
 
 
 @dataclass
-class VizInfo:
+class Visualization:
     """Saves information for a scatter plot."""
 
+    viz_type: str
     x_samples: NDArray[Any]
     y_samples: NDArray[Any]
     label: str
-    color: str | None
-    alpha: float | None
-    marker: str | None
+    kwargs: dict[str, Any]
+    # color: str | None
+    # alpha: float | None
+    # marker: str | None
 
 
 class LSModel(ABC):
@@ -39,17 +41,12 @@ class LSModel(ABC):
         super().__init__()
 
         self.data = data
-        # self.y_col = y_col
         self.dtype = dtype
-        self.model = None
 
         # mainly for visualization:
         if y_bounds is not None:
-            # self.y_min, self.y_max = y_bounds
             y_dict = {"type": "Float", "lower": y_bounds[0], "upper": y_bounds[1]}
         else:
-            # self.y_min = 0.0
-            # self.y_max = float(data[0:1]["conf.viz.max_return"])
             y_dict = {"type": "Float", "lower": 0.0, "upper": float(data[0:1]["conf.viz.max_return"])}
         y_info = DimInfo.from_dim_dict(y_col, y_dict, is_y=True)
         assert y_info is not None
@@ -57,9 +54,7 @@ class LSModel(ABC):
 
         # extract ls dimensions info from first row of data:
         dim_dicts: list[dict[str, dict[str, Any]]] = literal_eval(data[0:1]["conf.ls.dims"][0])
-        # self.dim_info: dict[str, DimInfo] = {}  # dim_name -> {"type": ..., "lower": ..., ...}
         self.dim_info: list[DimInfo] = []
-        # self.converters: dict[str, DimInfo]
         for d in dim_dicts:
             dim_name, dim_dict = next(iter(d.items()))
             di = DimInfo.from_dim_dict(dim_name, dim_dict)
@@ -98,17 +93,12 @@ class LSModel(ABC):
         """(num_confs, 1)"""
         self.y_iqm = iqm(self.y, axis=1).reshape(-1, 1)
         """(num_confs, 1)"""
-        # y_trim = trimboth(self.y, 0.025, axis=1)  # remove highest and lowest 2.5% of data, so we get middle 95%
-        # self.y_ci_upper = np.max(y_trim, axis=1, keepdims=True)
         self.y_ci_upper = np.quantile(self.y, 0.975, method="median_unbiased", axis=1, keepdims=True)
         """(num_confs, 1)"""
-        # self.y_ci_lower = np.min(y_trim, axis=1, keepdims=True)
         self.y_ci_lower = np.quantile(self.y, 0.025, method="median_unbiased", axis=1, keepdims=True)
         """(num_confs, 1)"""
 
-        # self.ls_dims = [k for k in df.keys() if k.startswith("ls.")]
-        # for phase_str in sorted(data["meta.phase"].unique()):
-        #     phase_df = data[data["meta.phase"] == phase_str].sort_values("meta.conf_index")
+        self._viz_infos: list[Visualization]
 
     def get_ls_dim_names(self) -> list[str]:
         """Get the list of hyperparameter landscape dimension names."""
@@ -129,50 +119,37 @@ class LSModel(ABC):
         """Return an lower estimate of y at the position(s) x."""
         raise NotImplementedError
 
-    @abstractmethod
-    def get_sample_viz_infos(self, include_rest: bool) -> list[VizInfo]:
-        """Return visualization info(s) for data points used for training the model.
+    def add_viz_info(self, viz_info: Visualization) -> None:
+        """Add a visualization to this model."""
+        self._viz_infos.append(viz_info)
 
-        Args:
-            include_rest: Whether to include a `VizInfo` for data points that are not used by the model. Always the
-            first VizInfo in the list.
-        """
-        raise NotImplementedError
+    def get_viz_infos(self) -> list[Visualization]:
+        """Return visualization info(s) for data points used for training the model."""
+        return self._viz_infos
 
-    def visualize(
-        self, ax: Axes, grid_length: int, viz_model: bool, viz_samples: bool, viz_model_samples: bool
-    ) -> None:
+    def visualize(self, ax: Axes, grid_length: int, viz_model: bool) -> None:
         """Visualize the model over the whole landscape.
 
         Args:
             ax: Axes to plot on.
             grid_length: Number of points on the grid on one side.
             viz_model: Whether to visualize the model.
-            viz_samples: Whether to visualize the inputted data points with scatter.
-            viz_model_samples: Whether to visualize/highlight input points used to train the `LSModel`.
-
-        Returns:
-            The modified axes.
         """
         num_ls_dims = len(self.get_ls_dim_names())
         match num_ls_dims:
             case 1:
-                self._visualize_1d(ax, grid_length, viz_model, viz_samples, viz_model_samples)
+                self._visualize_1d(ax, grid_length, viz_model)
             case 2:
-                self._visualize_2d(ax, grid_length, viz_model, viz_samples, viz_model_samples)
+                self._visualize_2d(ax, grid_length, viz_model)
             case n:
                 if n < 1:
                     raise Exception(f"Cannot visualize landscape with {n} dimensions!")
-                self._visualize_nd(ax, grid_length, viz_model, viz_samples, viz_model_samples)
+                self._visualize_nd(ax, grid_length, viz_model)
 
-    def _visualize_1d(
-        self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True, highlight_used: bool = True
-    ) -> None:
+    def _visualize_1d(self, ax: Axes, grid_length: int = 50, viz_model: bool = True) -> None:
         raise NotImplementedError
 
-    def _visualize_2d(
-        self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True, highlight_used: bool = True
-    ) -> None:
+    def _visualize_2d(self, ax: Axes, grid_length: int = 50, viz_model: bool = True) -> None:
         # assume we have 3d projection Axes:
         # ax.set_zlim3d(self.y_info.lower, self.y_info.upper)
         ax.set_zlim3d(0, 1)
@@ -193,14 +170,15 @@ class LSModel(ABC):
         grid_x1 = grid_x1.reshape((grid_length, grid_length))
         assert np.all((grid >= 0) & (grid <= 1))
 
-        if viz_gp:
+        if viz_model:
             for y_, opacity, label in [
                 (self.get_upper(grid), 0.5, "modelled upper CI bound"),
                 (self.get_middle(grid), 1.0, "modelled mean"),
                 (self.get_lower(grid), 0.5, "modelled lower CI bound"),
             ]:
                 cmap = "viridis" if opacity == 1.0 else None
-                color = (0.5, 0.5, 0.5, opacity) if opacity < 1.0 else None
+                # color = (0.5, 0.5, 0.5, opacity) if opacity < 1.0 else None
+                color = "red"
                 surface = ax.plot_surface(
                     grid_x0,
                     grid_x1,
@@ -208,29 +186,35 @@ class LSModel(ABC):
                     cmap=cmap,
                     color=color,
                     edgecolor="none",
-                    shade=False,
+                    shade=True,
                     label=label,
                 )
                 _fix_surface_for_legend(surface)
-        viz_infos: list[VizInfo]
-        match (viz_data, highlight_used):
-            case True, _:  # visualize data, highlight special samples anyways
-                viz_infos = self.get_sample_viz_infos(include_rest=True)
-            case False, True:  # only visualize special samples
-                viz_infos = self.get_sample_viz_infos(include_rest=False)
-            case _:
-                viz_infos = []
 
-        for viz_info in viz_infos:
-            ax.scatter(
-                viz_info.x_samples[:, 0],
-                viz_info.x_samples[:, 1],
-                viz_info.y_samples[:, 0],
-                label=viz_info.label,
-                color=viz_info.color,
-                alpha=viz_info.alpha,
-                marker=viz_info.marker,
-            )
+        viz_infos = self.get_viz_infos()
+        for viz in viz_infos:
+            match viz.viz_type:
+                case "scatter":
+                    ax.scatter(
+                        viz.x_samples[:, 0],
+                        viz.x_samples[:, 1],
+                        viz.y_samples[:, 0],
+                        label=viz.label,
+                        **viz.kwargs,
+                    )
+                case "trisurf":
+                    surface = ax.plot_trisurf(
+                        viz.x_samples[:, 0],
+                        viz.x_samples[:, 1],
+                        viz.y_samples[:, 0],
+                        label=viz.label,
+                        **viz.kwargs,
+                        edgecolor="none",
+                        # shade=False,
+                    )
+                    _fix_surface_for_legend(surface)
+                case _:
+                    raise NotImplementedError
         ax.set_xlabel(self.dim_info[0].name, fontsize=12)
         ax.set_ylabel(self.dim_info[1].name, fontsize=12)
         ax.set_zlabel(self.y_info.name, fontsize=12)
@@ -240,9 +224,8 @@ class LSModel(ABC):
         ax.zaxis.set_major_formatter(FuncFormatter(self.y_info.tick_formatter))
         return
 
-    def _visualize_nd(
-        self, ax: Axes, grid_length: int = 50, viz_gp: bool = True, viz_data: bool = True, highlight_used: bool = True
-    ) -> None:
+    def _visualize_nd(self, ax: Axes, grid_length: int = 50, viz_model: bool = True) -> None:
+        """Visualize e.g. with PCA dim reduction, PCP, marginalizing out dimensions."""
         raise NotImplementedError
 
 

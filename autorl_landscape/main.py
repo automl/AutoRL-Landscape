@@ -14,6 +14,7 @@ from matplotlib.figure import Figure
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.analyze.concavity import reject_concavity
+from autorl_landscape.analyze.rubber_band import RubberBand
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.linear import LinearLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
@@ -28,6 +29,7 @@ from autorl_landscape.visualize import (
 
 ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 51
+T = TypeVar("T")
 
 
 # @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -103,6 +105,14 @@ def main() -> None:
     parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_concavity.set_defaults(func="ana_concavity")
 
+    # phases ana rubber-band ...
+    parser_ana_rb = ana_subparsers.add_parser("rb", help="")
+    parser_ana_rb.add_argument("side", type=str, choices=["lower", "upper"], help="which rubber band to calculate")
+    parser_ana_rb.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_rb.add_argument("--model", type=str, choices=["hsgp", "linear", "triple-gp"], required=True)
+    parser_ana_rb.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    parser_ana_rb.set_defaults(func="ana_rb")
+
     # phases dl ...
     parser_dl = subparsers.add_parser("dl")
     parser_dl.add_argument("project_name", type=str)
@@ -132,6 +142,7 @@ def main() -> None:
                             model.load(model_folder)
                         else:
                             model.fit(100, verbose=True)
+                            # model.fit(2, verbose=True)
                         if args.save and not args.load:
                             model.save(model_folder)
                     case "viz_linear":
@@ -147,16 +158,15 @@ def main() -> None:
                     ax,
                     grid_length=args.grid_length,
                     viz_model=True,
-                    viz_samples=args.viz_samples,
-                    viz_model_samples=args.viz_model_samples,
                 )
             _add_legend(fig)
             plt.show()
         case "viz_data":
             visualize_data(args.data)
-        case "ana_concavity":
+        case "ana_concavity" | "ana_rb":
             file = Path(args.data)
             df = read_wandb_csv(file)
+            fig = plt.figure(figsize=(16, 12))
             phase_strs = sorted(df["meta.phase"].unique())
             for i, phase_str in enumerate(phase_strs):
                 phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
@@ -173,7 +183,19 @@ def main() -> None:
                     case _:
                         parser.print_help()
                         return
-                reject_concavity(model, grid_length=args.grid_length)
+                match args.func:
+                    case "ana_concavity":
+                        reject_concavity(model, grid_length=args.grid_length)
+                    case "ana_rb":
+                        RubberBand(model, side=args.side, grid_length=args.grid_length)
+                ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
+                model.visualize(
+                    ax,
+                    grid_length=args.grid_length,
+                    viz_model=True,
+                )
+            _add_legend(fig)
+            plt.show()
         case "dl":
             download_data(ENTITY, args.project_name)
         case _:
@@ -190,16 +212,16 @@ def _prepare_hydra(args: argparse.Namespace) -> DictConfig:
 
 def _add_model_viz_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("data", help="csv file containing data of all runs")
-    group_samples = parser.add_mutually_exclusive_group()
-    group_samples.add_argument(
-        "--viz-samples", action="store_true", dest="viz_samples", help="Visualize all performance samples"
-    )
-    group_samples.add_argument(
-        "--viz-model-samples",
-        action="store_true",
-        dest="viz_model_samples",
-        help="Only visualize samples that were used to train the model",
-    )
+    # group_samples = parser.add_mutually_exclusive_group()
+    # group_samples.add_argument(
+    #     "--viz-samples", action="store_true", dest="viz_samples", help="Visualize all performance samples"
+    # )
+    # group_samples.add_argument(
+    #     "--viz-model-samples",
+    #     action="store_true",
+    #     dest="viz_model_samples",
+    #     help="Only visualize samples that were used to train the model",
+    # )
     group_sl = parser.add_mutually_exclusive_group()
     group_sl.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
     group_sl.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
@@ -208,9 +230,9 @@ def _add_model_viz_args(parser: argparse.ArgumentParser) -> None:
 
 def _add_legend(fig: Figure) -> None:
     legend = fig.legend(handles=fig.axes[0].collections)
-    foo = _transpose([ax.collections for ax in fig.axes])
+    fig_artss = _transpose([ax.collections for ax in fig.axes])
     leg_to_fig: dict[Artist, list[Any]] = {}
-    for leg_text, fig_arts in zip(legend.get_texts(), foo):
+    for leg_text, fig_arts in zip(legend.get_texts(), fig_artss):
         leg_text.set_picker(True)
         leg_to_fig[leg_text] = fig_arts
 
@@ -224,9 +246,6 @@ def _add_legend(fig: Figure) -> None:
         fig.canvas.draw()
 
     fig.canvas.mpl_connect("pick_event", on_pick)
-
-
-T = TypeVar("T")
 
 
 def _transpose(ll: Iterable[Iterable[T]]) -> list[list[T]]:
