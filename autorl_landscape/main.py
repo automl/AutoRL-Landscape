@@ -17,6 +17,7 @@ from autorl_landscape.analyze.concavity import reject_concavity
 from autorl_landscape.analyze.rubber_band import RubberBand
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.linear import LinearLSModel
+from autorl_landscape.ls_models.mock import MockLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
 from autorl_landscape.util.data import read_wandb_csv
@@ -29,6 +30,7 @@ from autorl_landscape.visualize import (
 
 ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 51
+MODELS = ["hsgp", "linear", "triple-gp", "mock"]
 T = TypeVar("T")
 
 
@@ -101,7 +103,7 @@ def main() -> None:
     # phases ana concavity ...
     parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
     parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_concavity.add_argument("--model", type=str, choices=["hsgp", "linear", "triple-gp"], required=True)
+    parser_ana_concavity.add_argument("--model", type=str, choices=MODELS, required=True)
     parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_concavity.set_defaults(func="ana_concavity")
 
@@ -109,7 +111,7 @@ def main() -> None:
     parser_ana_rb = ana_subparsers.add_parser("rb", help="")
     parser_ana_rb.add_argument("side", type=str, choices=["lower", "upper"], help="which rubber band to calculate")
     parser_ana_rb.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_rb.add_argument("--model", type=str, choices=["hsgp", "linear", "triple-gp"], required=True)
+    parser_ana_rb.add_argument("--model", type=str, choices=MODELS, required=True)
     parser_ana_rb.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_rb.set_defaults(func="ana_rb")
 
@@ -180,6 +182,8 @@ def main() -> None:
                     case "triple-gp":
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
                         model.fit()
+                    case "mock":
+                        model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None)
                     case _:
                         parser.print_help()
                         return

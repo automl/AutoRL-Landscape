@@ -98,7 +98,7 @@ class LSModel(ABC):
         self.y_ci_lower = np.quantile(self.y, 0.025, method="median_unbiased", axis=1, keepdims=True)
         """(num_confs, 1)"""
 
-        self._viz_infos: list[Visualization]
+        self._viz_infos: list[Visualization] = []
 
     def get_ls_dim_names(self) -> list[str]:
         """Get the list of hyperparameter landscape dimension names."""

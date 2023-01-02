@@ -89,24 +89,25 @@ class RubberBand:
         rb = SimplexInterpolator(rb_points[:, 0:-1], rb_points[:, -1].reshape(-1, 1), rb_simplices)
         print(_is_valid_rubber_band(rb, model, x))
 
-        # self.model.add_viz_info(
-        #     Visualization(
-        #         "trisurf",
-        #         rb_points[:, 0:-1],
-        #         rb_points[:, -1].reshape(-1, 1),
-        #         "rubber band",
-        #         {"color": "yellow", "shade": True},
-        #     )
-        # )
-        # return
+        self.model.add_viz_info(
+            Visualization(
+                "trisurf",
+                rb.points[:, 0:-1],
+                rb.points[:, -1].reshape(-1, 1),
+                "rubber band before",
+                {"color": "blue", "shade": True, "triangles": [s.inds for s in rb.simplices]},
+            )
+        )
 
         points_mask = np.full(rb_points.shape[0], fill_value=True, dtype=np.bool_)
         # add all points that lie in the intersection of both hulls (these don't need to be part of the convex hull):
-        # all_points = np.concatenate((lower, upper), axis=0)
-        # inter_indices = (self.lower_delaunay.find_simplex(all_points) >= 0) & (
-        #     self.upper_delaunay.find_simplex(all_points) >= 0
-        # )
-        # rb_points = np.concatenate((rb_points, all_points[inter_indices]), axis=0)
+        all_points = np.concatenate((lower, upper), axis=0)
+        intersection_mask = (self.lower_delaunay.find_simplex(all_points) >= 0) & (
+            self.upper_delaunay.find_simplex(all_points) >= 0
+        )
+        rb.add_points(all_points[intersection_mask])
+        print(_is_valid_rubber_band(rb, model, x))
+        # rb_points = np.concatenate((rb_points, all_points[intersection_inds]), axis=0)
         # rb_points = np.unique(rb_points, axis=0)
 
         # minimize points of the rubber band, see if it is still valid:
@@ -131,10 +132,10 @@ class RubberBand:
         self.model.add_viz_info(
             Visualization(
                 "trisurf",
-                rb_points[:, 0:-1],
-                rb_points[:, -1].reshape(-1, 1),
+                rb.points[:, 0:-1],
+                rb.points[:, -1].reshape(-1, 1),
                 "rubber band",
-                {"color": "yellow", "shade": True},
+                {"color": "yellow", "shade": True, "triangles": [s.inds for s in rb.simplices]},
             )
         )
         # show actual convex hull (correct triangles) (does not work after changing points though):
