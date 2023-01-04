@@ -93,7 +93,7 @@
       "args": [
         "ana",
         "rb",
-        "lower",
+        "upper",
         "--data",
         "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
         "--grid-length",
@@ -112,13 +112,13 @@
       "args": [
         "ana",
         "rb",
-        "lower",
+        "upper",
         "--data",
         "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
-        "--grid-length",
-        "11",
         "--model",
-        "mock"
+        "mock",
+        "--grid-length",
+        "11"
       ],
       "justMyCode": false
     }

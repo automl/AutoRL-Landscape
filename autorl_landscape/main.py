@@ -232,20 +232,26 @@ def _add_model_viz_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
 
 
-def _add_legend(fig: Figure) -> None:
+def _add_legend(fig: Figure, hide_at_start: bool = True) -> None:
     legend = fig.legend(handles=fig.axes[0].collections)
     fig_artss = _transpose([ax.collections for ax in fig.axes])
     leg_to_fig: dict[Artist, list[Any]] = {}
     for leg_text, fig_arts in zip(legend.get_texts(), fig_artss):
+        if hide_at_start:
+            for fig_art in fig_arts:
+                if fig_art is not None:
+                    fig_art.set_visible(False)
+            leg_text.set_alpha(0.2)
         leg_text.set_picker(True)
         leg_to_fig[leg_text] = fig_arts
 
     def on_pick(event: PickEvent):
         leg_text = event.artist
         fig_artists = leg_to_fig[leg_text]
-        visible = not fig_artists[0].get_visible()
         for fig_artist in fig_artists:
-            fig_artist.set_visible(visible)
+            if fig_artist is not None:
+                visible = not fig_artist.get_visible()
+                fig_artist.set_visible(visible)
         leg_text.set_alpha(1.0 if visible else 0.2)
         fig.canvas.draw()
 

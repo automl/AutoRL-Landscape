@@ -93,9 +93,11 @@ class LSModel(ABC):
         """(num_confs, 1)"""
         self.y_iqm = iqm(self.y, axis=1).reshape(-1, 1)
         """(num_confs, 1)"""
-        self.y_ci_upper = np.quantile(self.y, 0.975, method="median_unbiased", axis=1, keepdims=True)
+        # self.y_ci_upper = np.quantile(self.y, 0.975, method="median_unbiased", axis=1, keepdims=True)
+        self.y_ci_upper = np.quantile(self.y, 0.8, method="median_unbiased", axis=1, keepdims=True)
         """(num_confs, 1)"""
-        self.y_ci_lower = np.quantile(self.y, 0.025, method="median_unbiased", axis=1, keepdims=True)
+        # self.y_ci_lower = np.quantile(self.y, 0.025, method="median_unbiased", axis=1, keepdims=True)
+        self.y_ci_lower = np.quantile(self.y, 0.2, method="median_unbiased", axis=1, keepdims=True)
         """(num_confs, 1)"""
 
         self._viz_infos: list[Visualization] = []
