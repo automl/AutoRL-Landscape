@@ -121,6 +121,39 @@
         "11"
       ],
       "justMyCode": false
+    },
+    {
+      "name": "phases ana peaks",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "ana",
+        "peaks",
+        "middle",
+        "--data",
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "--model",
+        "linear",
+        "--grid-length",
+        "21"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases ana modalities",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "ana",
+        "modalities",
+        "--data",
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
+      ],
+      "justMyCode": false
     }
   ]
 }

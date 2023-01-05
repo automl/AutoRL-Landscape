@@ -14,9 +14,12 @@ from matplotlib.figure import Figure
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.analyze.concavity import reject_concavity
+from autorl_landscape.analyze.distributions import check_modality
+from autorl_landscape.analyze.peaks import count_peaks_model
 from autorl_landscape.analyze.rubber_band import RubberBand
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.linear import LinearLSModel
+from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.ls_models.mock import MockLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
@@ -107,13 +110,29 @@ def main() -> None:
     parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_concavity.set_defaults(func="ana_concavity")
 
-    # phases ana rubber-band ...
+    # phases ana rb ...
     parser_ana_rb = ana_subparsers.add_parser("rb", help="")
     parser_ana_rb.add_argument("side", type=str, choices=["lower", "upper"], help="which rubber band to calculate")
     parser_ana_rb.add_argument("--data", help="csv file containing data of all runs", required=True)
     parser_ana_rb.add_argument("--model", type=str, choices=MODELS, required=True)
     parser_ana_rb.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_rb.set_defaults(func="ana_rb")
+
+    # phases ana peaks ...
+    parser_ana_peaks = ana_subparsers.add_parser("peaks", help="")
+    parser_ana_peaks.add_argument(
+        "side", type=str, choices=["lower", "middle", "upper"], help="which function to analyze"
+    )
+    parser_ana_peaks.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_peaks.add_argument("--model", type=str, choices=MODELS, required=True)
+    parser_ana_peaks.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    parser_ana_peaks.set_defaults(func="ana_peaks")
+
+    # phases ana modalities ...
+    parser_ana_modalities = ana_subparsers.add_parser("modalities", help="")
+    parser_ana_modalities.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_modalities.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    parser_ana_modalities.set_defaults(func="ana_modalities", model=None)
 
     # phases dl ...
     parser_dl = subparsers.add_parser("dl")
@@ -165,7 +184,7 @@ def main() -> None:
             plt.show()
         case "viz_data":
             visualize_data(args.data)
-        case "ana_concavity" | "ana_rb":
+        case "ana_concavity" | "ana_rb" | "ana_peaks" | "ana_modalities":
             file = Path(args.data)
             df = read_wandb_csv(file)
             fig = plt.figure(figsize=(16, 12))
@@ -185,18 +204,27 @@ def main() -> None:
                     case "mock":
                         model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None)
                     case _:
-                        parser.print_help()
-                        return
+                        model = LSModel(phase_data, np.float64, "ls_eval/returns", None)
+                viz_model = True
                 match args.func:
                     case "ana_concavity":
                         reject_concavity(model, grid_length=args.grid_length)
                     case "ana_rb":
                         RubberBand(model, side=args.side, grid_length=args.grid_length)
+                    case "ana_peaks":
+                        method_name = f"get_{args.side}"
+                        count_peaks_model(model, method_name, len(model.dim_info), args.grid_length, bounds=(0, 1))
+                    case "ana_modalities":
+                        check_modality(model)
+                        viz_model = False
+                    case _:
+                        parser.print_help()
+                        return
                 ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
                 model.visualize(
                     ax,
                     grid_length=args.grid_length,
-                    viz_model=True,
+                    viz_model=viz_model,
                 )
             _add_legend(fig)
             plt.show()

@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 from typing import Any
 
 from ast import literal_eval
@@ -28,7 +27,7 @@ class Visualization:
     # marker: str | None
 
 
-class LSModel(ABC):
+class LSModel:
     """A model for the hyperparameter landscape."""
 
     def __init__(
@@ -106,17 +105,14 @@ class LSModel(ABC):
         """Get the list of hyperparameter landscape dimension names."""
         return [di.name for di in self.dim_info]
 
-    @abstractmethod
     def get_upper(self, x: NDArray[Any]) -> NDArray[Any]:
         """Return an upper estimate of y at the position(s) x."""
         raise NotImplementedError
 
-    @abstractmethod
     def get_middle(self, x: NDArray[Any]) -> NDArray[Any]:
         """Return some middle (mean, interquartile mean, median, etc.) estimate of y at the position(s) x."""
         raise NotImplementedError
 
-    @abstractmethod
     def get_lower(self, x: NDArray[Any]) -> NDArray[Any]:
         """Return an lower estimate of y at the position(s) x."""
         raise NotImplementedError
@@ -179,8 +175,8 @@ class LSModel(ABC):
                 (self.get_lower(grid), 0.5, "modelled lower CI bound"),
             ]:
                 cmap = "viridis" if opacity == 1.0 else None
-                # color = (0.5, 0.5, 0.5, opacity) if opacity < 1.0 else None
-                color = "red"
+                color = (0.5, 0.5, 0.5, opacity) if opacity < 1.0 else None
+                # color = "red"
                 surface = ax.plot_surface(
                     grid_x0,
                     grid_x1,
@@ -211,10 +207,19 @@ class LSModel(ABC):
                         viz.y_samples[:, 0],
                         label=viz.label,
                         **viz.kwargs,
-                        edgecolor="none",
+                        # edgecolor="none",
                         # shade=False,
                     )
                     _fix_surface_for_legend(surface)
+                # case "surface":
+                #     surface = ax.plot_surface(
+                #         viz.x_samples[:, 0],
+                #         viz.x_samples[:, 1],
+                #         viz.y_samples[:, 0],
+                #         label=viz.label,
+                #         **viz.kwargs,
+                #     )
+                #     _fix_surface_for_legend(surface)
                 case _:
                     raise NotImplementedError
         ax.set_xlabel(self.dim_info[0].name, fontsize=12)
