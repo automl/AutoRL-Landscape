@@ -4,9 +4,10 @@ from collections import Counter
 
 import numpy as np
 from numpy.typing import NDArray
+from pandas import DataFrame
 from pyfolding import FTU
 
-from autorl_landscape.analyze.peaks import count_peaks
+from autorl_landscape.analyze.peaks import find_peaks
 from autorl_landscape.ls_models.ls_model import LSModel, Visualization
 
 BINS = 10
@@ -23,10 +24,10 @@ def check_modality(model: LSModel) -> None:
     for i, (x, y) in enumerate(zip(model.x, model.y)):
         # count peaks in histogram of distribution:
         y_hist, _ = np.histogram(y, BINS, range=(0, 1))
-        _, max_mask, _, max_count = count_peaks(y_hist, 1)
+        _, max_mask, _, max_count = find_peaks(y_hist, 1)  # TODO change to KDE analysis
         # min_counts.append(min_count)
         max_counts.append(max_count)
-        num_modes[i] = 0.1 * max_count
+        num_modes[i] = max_count
 
         # extract modes from histogram:
         modes_x = np.stack([x] * int(np.sum(max_mask)))
@@ -45,22 +46,30 @@ def check_modality(model: LSModel) -> None:
 
     model.add_viz_info(
         Visualization(
+            "Folding Test of Uni-modality",
             "trisurf",
-            model.x,
-            ftu_PHIs,
-            "FTU PHI's",
+            "peaks",
+            DataFrame(ftu_PHIs, columns=["Φ"]),
             {"cmap": "viridis"},
         )
     )
     model.add_viz_info(
         Visualization(
+            "Per-Configuration Mode Count",
             "trisurf",
-            model.x,
-            num_modes,
-            "number of modes",
+            "peaks",
+            DataFrame(num_modes, columns=["mode count"]),
             {"cmap": "viridis"},
         )
     )
     modess_x = np.concatenate(modess_x)
     modess_y = np.concatenate(modess_y)
-    model.add_viz_info(Visualization("scatter", modess_x, modess_y, "modes", {"color": "red", "alpha": 0.75}))
+    model.add_viz_info(
+        Visualization(
+            "Per-Configuration Modes",
+            "scatter",
+            "graphs",
+            model.build_df(modess_x, modess_y, "modes"),
+            {"color": "red", "alpha": 0.75},
+        )
+    )

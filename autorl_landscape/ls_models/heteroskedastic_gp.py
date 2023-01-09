@@ -10,7 +10,7 @@ from gpflow.models import SVGP
 from numpy.typing import NDArray
 from pandas import DataFrame
 
-from autorl_landscape.ls_models.ls_model import LSModel, Visualization, grid_space_2d
+from autorl_landscape.ls_models.ls_model import LSModel, grid_space_2d
 
 # DTYPE = np.float64
 
@@ -34,10 +34,6 @@ class HSGPModel(LSModel):
         super().__init__(data, dtype, y_col, y_bounds)
         self.induce_grid_length = induce_grid_length
         gpf.config.set_default_float(dtype)  # WARNING Global!
-        self._viz_infos = [
-            Visualization("scatter", self.x_samples, self.y_samples, "training data points", {"color": "red"})
-            # all samples are directly used to train the model
-        ]
 
     def fit(self, epochs: int, batch_size: int = 64, early_stopping: bool = False, verbose: bool = False) -> None:
         """Fit the GP to its data.

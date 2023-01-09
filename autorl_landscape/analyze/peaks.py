@@ -9,45 +9,45 @@ from scipy.ndimage import (
     minimum_filter,
 )
 
-from autorl_landscape.ls_models.ls_model import LSModel, Visualization
+from autorl_landscape.ls_models.ls_model import LSModel, Visualization, grid_space_nd
 
 
-def count_peaks_model(
+def find_peaks_model(
     model: LSModel,
-    method_name: str,
     num_dims: int,
     grid_length: int,
     bounds: tuple[float, float],
-) -> tuple[NDArray[np.bool_], NDArray[np.bool_], int, int]:
-    """Count local minima and maxima, given a model and method of it."""
-    func: Callable[[NDArray[Any]], NDArray[Any]] = getattr(model, method_name)
-    grid = grid_space_nd(num_dims, grid_length, bounds=bounds)
-    y_grid = func(grid).squeeze()
-    assert y_grid.shape == grid.shape[0:-1]
+) -> None:
+    """Count local minima and maxima, given a model and layer of it."""
+    for model_layer_name in model.model_layer_names:
+        title = f"{model_layer_name.capitalize()} Model"
+        func: Callable[[NDArray[Any]], NDArray[Any]] = getattr(model, f"get_{model_layer_name}")
+        grid = grid_space_nd(num_dims, grid_length, bounds=bounds)
+        y_grid = func(grid).squeeze()
+        assert y_grid.shape == grid.shape[0:-1]
 
-    min_mask, max_mask, min_count, max_count = count_peaks(y_grid, num_dims)
-    model.add_viz_info(
-        Visualization(
-            "scatter",
-            grid[min_mask],
-            y_grid[min_mask].reshape(-1, 1),
-            "local minima",
-            {"color": "red", "alpha": 0.75, "marker": "v"},
+        min_mask, max_mask, _, _ = find_peaks(y_grid, num_dims)
+        model.add_viz_info(
+            Visualization(
+                title,
+                "scatter",
+                "maps",
+                model.build_df(grid[min_mask], y_grid[min_mask].reshape(-1, 1), "minima"),
+                {"color": "red", "alpha": 0.75, "marker": "v"},
+            )
         )
-    )
-    model.add_viz_info(
-        Visualization(
-            "scatter",
-            grid[max_mask],
-            y_grid[max_mask].reshape(-1, 1),
-            "local maxima",
-            {"color": "red", "alpha": 0.75, "marker": "^"},
+        model.add_viz_info(
+            Visualization(
+                title,
+                "scatter",
+                "maps",
+                model.build_df(grid[max_mask], y_grid[max_mask].reshape(-1, 1), "maxima"),
+                {"color": "red", "alpha": 0.75, "marker": "^"},
+            )
         )
-    )
-    return min_mask, max_mask, min_count, max_count
 
 
-def count_peaks(y_grid: NDArray[Any], num_dims: int) -> tuple[NDArray[np.bool_], NDArray[np.bool_], int, int]:
+def find_peaks(y_grid: NDArray[Any], num_dims: int) -> tuple[NDArray[np.bool_], NDArray[np.bool_], int, int]:
     """Count local minima and maxima of given data."""
     # find plateaus (these could be local minima, maxima, or saddle points):
     def any_equal_to_middle(x: NDArray[Any]):
@@ -78,12 +78,3 @@ def count_peaks(y_grid: NDArray[Any], num_dims: int) -> tuple[NDArray[np.bool_],
             max_mask[plateau_mask] = True
             max_count += 1
     return min_mask, max_mask, min_count, max_count
-
-
-def grid_space_nd(
-    num_dims: int, grid_length: int, dtype: type = np.float64, bounds: tuple[float, float] = (0.0, 1.0)
-) -> NDArray[Any]:
-    """Generate a `num_dims` dimensional grid of shape (*(grid_length,) * num_dims, num_dims)."""
-    axis = np.linspace(bounds[0], bounds[1], num=grid_length, dtype=dtype)
-    grid_xis = np.meshgrid(*[axis] * num_dims)
-    return np.stack(grid_xis).T

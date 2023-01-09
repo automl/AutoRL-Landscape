@@ -4,7 +4,7 @@ import gpflow
 from numpy.typing import NDArray
 from pandas import DataFrame
 
-from autorl_landscape.ls_models.ls_model import LSModel, Visualization
+from autorl_landscape.ls_models.ls_model import LSModel
 
 
 class TripleGPModel(LSModel):
@@ -19,19 +19,6 @@ class TripleGPModel(LSModel):
     ) -> None:
         super().__init__(data, dtype, y_col, y_bounds)
         gpflow.config.set_default_float(dtype)  # WARNING Global!
-        self._viz_infos = [
-            Visualization(
-                "scatter", self.x, self.y_ci_upper, "97.5%-percentile", {"color": "red", "alpha": 0.75, "marker": "v"}
-            ),
-            Visualization(
-                "scatter", self.x, self.y_iqm, "interquartile mean", {"color": "red", "alpha": 0.75, "marker": "D"}
-            ),
-            Visualization(
-                "scatter", self.x, self.y_ci_lower, "2.5%-percentile", {"color": "red", "alpha": 0.75, "marker": "^"}
-            ),
-            Visualization("scatter", self.x_samples, self.y_samples, "data points", {"alpha": 0.025}),
-            # no samples are directly used to train the models
-        ]
 
     def fit(self):
         """Fit the three GPs to IQM, upper and lower CI."""

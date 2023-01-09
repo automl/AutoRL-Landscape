@@ -3,7 +3,7 @@ from typing import Any
 from numpy.typing import NDArray
 from pandas import DataFrame
 
-from autorl_landscape.ls_models.ls_model import LSModel, Visualization
+from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.util.interpolate import LinearInterpolator
 
 
@@ -26,20 +26,6 @@ class LinearLSModel(LSModel):
         # self.ci_lower_model_nearest = NearestNDInterpolator(self.x, self.y_mean - 1.96 * self.y_std)
         # self.ci_upper_model_nearest = NearestNDInterpolator(self.x, self.y_ci_upper)
         # self.ci_lower_model_nearest = NearestNDInterpolator(self.x, self.y_ci_lower)
-
-        self._viz_infos = [
-            Visualization(
-                "scatter", self.x, self.y_ci_upper, "97.5%-percentile", {"color": "red", "alpha": 0.75, "marker": "v"}
-            ),
-            Visualization(
-                "scatter", self.x, self.y_iqm, "interquartile mean", {"color": "red", "alpha": 0.75, "marker": "D"}
-            ),
-            Visualization(
-                "scatter", self.x, self.y_ci_lower, "2.5%-percentile", {"color": "red", "alpha": 0.75, "marker": "^"}
-            ),
-            Visualization("scatter", self.x_samples, self.y_samples, "data points", {"alpha": 0.025}),
-            # no samples are directly used to train the models
-        ]
 
     def get_upper(self, x: NDArray[Any]) -> NDArray[Any]:
         """Return the interpolated upper estimate of y at the position(s) x."""

@@ -6,7 +6,6 @@ from itertools import zip_longest
 from pathlib import Path
 
 import hydra
-import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.artist import Artist
 from matplotlib.backend_bases import PickEvent
@@ -15,8 +14,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.analyze.concavity import reject_concavity
 from autorl_landscape.analyze.distributions import check_modality
-from autorl_landscape.analyze.peaks import count_peaks_model
-from autorl_landscape.analyze.rubber_band import RubberBand
+from autorl_landscape.analyze.peaks import find_peaks_model
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.linear import LinearLSModel
 from autorl_landscape.ls_models.ls_model import LSModel
@@ -34,6 +32,7 @@ from autorl_landscape.visualize import (
 ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 51
 MODELS = ["hsgp", "linear", "triple-gp", "mock"]
+VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
 T = TypeVar("T")
 
 
@@ -68,7 +67,7 @@ def main() -> None:
     parser_viz_samples.add_argument("data", help="csv file containing data of all runs")
     parser_viz_samples.set_defaults(func="viz_samples")
 
-    # phases viz gp ...
+    # phases viz hsgp ...
     parser_viz_hsgp = viz_subparsers.add_parser(
         "hsgp", help="view a GP model trained on a hyperparameter landscape dataset"
     )
@@ -103,36 +102,36 @@ def main() -> None:
     ana_subparsers = parser_ana.add_subparsers()
     ana_subparsers.required = True
 
-    # phases ana concavity ...
-    parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
-    parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_concavity.add_argument("--model", type=str, choices=MODELS, required=True)
-    parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
-    parser_ana_concavity.set_defaults(func="ana_concavity")
+    # phases ana maps ... (surfaces and peaks of surfaces)
+    parser_ana_maps = ana_subparsers.add_parser("maps", help="")
+    parser_ana_maps.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_maps.add_argument("--model", type=str, choices=MODELS, required=True)
+    parser_ana_maps.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    parser_ana_maps.set_defaults(func="maps")
 
-    # phases ana rb ...
-    parser_ana_rb = ana_subparsers.add_parser("rb", help="")
-    parser_ana_rb.add_argument("side", type=str, choices=["lower", "upper"], help="which rubber band to calculate")
-    parser_ana_rb.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_rb.add_argument("--model", type=str, choices=MODELS, required=True)
-    parser_ana_rb.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
-    parser_ana_rb.set_defaults(func="ana_rb")
+    # # phases ana rb ...
+    # parser_ana_rb = ana_subparsers.add_parser("rb", help="")
+    # parser_ana_rb.add_argument("side", type=str, choices=["lower", "upper"], help="which rubber band to calculate")
+    # parser_ana_rb.add_argument("--data", help="csv file containing data of all runs", required=True)
+    # parser_ana_rb.add_argument("--model", type=str, choices=MODELS, required=True)
+    # parser_ana_rb.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    # parser_ana_rb.set_defaults(func="ana_rb")
 
-    # phases ana peaks ...
+    # phases ana peaks ... (map FTU PHI's)
     parser_ana_peaks = ana_subparsers.add_parser("peaks", help="")
-    parser_ana_peaks.add_argument(
-        "side", type=str, choices=["lower", "middle", "upper"], help="which function to analyze"
-    )
+    # parser_ana_peaks.add_argument(
+    #     "layer", type=str, choices=["lower", "middle", "upper"], help="which function of the model to analyze"
+    # )
     parser_ana_peaks.add_argument("--data", help="csv file containing data of all runs", required=True)
     parser_ana_peaks.add_argument("--model", type=str, choices=MODELS, required=True)
     parser_ana_peaks.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
-    parser_ana_peaks.set_defaults(func="ana_peaks")
+    parser_ana_peaks.set_defaults(func="peaks")
 
-    # phases ana modalities ...
+    # phases ana modalities ... (scatter all samples and highlight the found modes per conf)
     parser_ana_modalities = ana_subparsers.add_parser("modalities", help="")
     parser_ana_modalities.add_argument("--data", help="csv file containing data of all runs", required=True)
     parser_ana_modalities.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
-    parser_ana_modalities.set_defaults(func="ana_modalities", model=None)
+    parser_ana_modalities.set_defaults(func="modalities", model=None)
 
     # phases dl ...
     parser_dl = subparsers.add_parser("dl")
@@ -151,9 +150,8 @@ def main() -> None:
         case "viz_hsgp" | "viz_linear" | "viz_triple_gp":
             file = Path(args.data)
             df = read_wandb_csv(file)
-            fig = plt.figure(figsize=(16, 12))
             phase_strs = sorted(df["meta.phase"].unique())
-            for i, phase_str in enumerate(phase_strs):
+            for phase_str in phase_strs:
                 phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
                 match args.func:
                     case "viz_hsgp":
@@ -174,22 +172,17 @@ def main() -> None:
                     case _:
                         parser.print_help()
                         return
-                ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                model.visualize(
-                    ax,
-                    grid_length=args.grid_length,
-                    viz_model=True,
-                )
-            _add_legend(fig)
-            plt.show()
+                model.visualize(grid_length=args.grid_length, which="maps")
+            # _add_legend(fig)
+            # plt.show()
         case "viz_data":
             visualize_data(args.data)
-        case "ana_concavity" | "ana_rb" | "ana_peaks" | "ana_modalities":
+        # case "ana_concavity" | "ana_rb" | "ana_peaks" | "ana_modalities":
+        case "maps" | "peaks" | "modalities":
             file = Path(args.data)
             df = read_wandb_csv(file)
-            fig = plt.figure(figsize=(16, 12))
             phase_strs = sorted(df["meta.phase"].unique())
-            for i, phase_str in enumerate(phase_strs):
+            for phase_str in phase_strs:
                 phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
                 match args.model:
                     case "hsgp":
@@ -205,29 +198,22 @@ def main() -> None:
                         model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None)
                     case _:
                         model = LSModel(phase_data, np.float64, "ls_eval/returns", None)
-                viz_model = True
                 match args.func:
-                    case "ana_concavity":
-                        reject_concavity(model, grid_length=args.grid_length)
-                    case "ana_rb":
-                        RubberBand(model, side=args.side, grid_length=args.grid_length)
-                    case "ana_peaks":
-                        method_name = f"get_{args.side}"
-                        count_peaks_model(model, method_name, len(model.dim_info), args.grid_length, bounds=(0, 1))
-                    case "ana_modalities":
+                    case "maps":
+                        find_peaks_model(model, len(model.dim_info), args.grid_length, bounds=(0, 1))
+                    case "peaks":
                         check_modality(model)
-                        viz_model = False
+                    case "graphs":
+                        check_modality(model)
+                    case "ci_graphs":
+                        reject_concavity(model, grid_length=args.grid_length)
+                        raise NotImplementedError
                     case _:
                         parser.print_help()
                         return
-                ax = fig.add_subplot(1, len(phase_strs), i + 1, projection="3d")
-                model.visualize(
-                    ax,
-                    grid_length=args.grid_length,
-                    viz_model=viz_model,
-                )
-            _add_legend(fig)
-            plt.show()
+                model.visualize(grid_length=args.grid_length, which=args.func)
+            # _add_legend(fig)
+            # plt.show()
         case "dl":
             download_data(ENTITY, args.project_name)
         case _:
@@ -258,6 +244,7 @@ def _add_model_viz_args(parser: argparse.ArgumentParser) -> None:
     group_sl.add_argument("--save", action="store_true", dest="save", help="Save the trained model to disk")
     group_sl.add_argument("--load", action="store_true", dest="load", help="Load the trained model from disk")
     parser.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    # parser.add_argument("--which", type=str, choices=VISUALIZATION_GROUPS, help="Which specific viz's to show")
 
 
 def _add_legend(fig: Figure, hide_at_start: bool = True) -> None:
