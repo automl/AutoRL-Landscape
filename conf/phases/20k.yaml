@@ -1,0 +1,7 @@
+# @package _global_
+
+# Good setting for dqn_cartpole
+total_timesteps: 20000
+eval:
+  freq_eval_interval: 1000
+phases:

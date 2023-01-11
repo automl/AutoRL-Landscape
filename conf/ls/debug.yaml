@@ -1,11 +1,10 @@
 # @package _global_
 
 ls:
-  # seed: 0 # landscape sampler rng
-  type: Sobol # needed but doesn't matter
+  type: Grid
   dims:
     - nn_width:
-        type: Constant # the constant value will be queried from agent/zoo_optimal_ls
+        type: Constant
     - nn_length:
         type: Constant
     - learning_rate:
@@ -13,4 +12,6 @@ ls:
     - neg_gamma:
         type: Constant
     - exploration_final_eps:
-        type: Constant
+        type: Float
+        lower: 0.111
+        upper: 0.222

@@ -6,12 +6,17 @@ from itertools import combinations
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.artist import Artist
+from matplotlib.image import AxesImage
 from matplotlib.ticker import FuncFormatter
 from numpy.typing import NDArray
 from pandas import DataFrame
 
 from autorl_landscape.util.compare import iqm
+from autorl_landscape.util.grid_space import grid_space_nd
 from autorl_landscape.util.ls_sampler import DimInfo
+
+TICK_POS = np.linspace(0, 1, 5)
 
 
 @dataclass
@@ -45,7 +50,7 @@ class LSModel:
         super().__init__()
 
         self.dtype = dtype
-        self.model_layer_names = ["lower", "middle", "upper"]
+        self.model_layer_names = ["upper", "middle", "lower"]
 
         # mainly for visualization:
         if y_bounds is not None:
@@ -294,17 +299,25 @@ class LSModel:
         self._add_model_viz(grid_length)
         # grid_shape = grid.shape[0:-1]
         fig = plt.figure(figsize=(16, 10))
+        image_artist = None  # used for colorbar
         match which:
             case "maps" | "peaks":  # x0x1 -> y
                 x01s = list(combinations(self.get_ls_dim_names(), 2))  # all 2-combinations of x (ls) dimensions
                 titles = list(dict.fromkeys([v.title for v in self.get_viz_infos() if v.visualization_group == which]))
 
                 for i, title in enumerate(titles):  # rows
-                    add_title = i == 0  # title on first row
                     label_x0 = i == (len(titles) - 1)  # label on last row
                     for j, (x0, x1) in enumerate(x01s):  # columns
-                        ax = plt.subplot2grid((len(titles), len(x01s)), (i, j), fig=fig)
-                        self._visualize_single(ax, title, x0, x1, grid_length, label_x0, True, add_title)
+                        add_title = j == 0  # title on first column
+                        ax = plt.subplot2grid((len(titles), len(x01s) + 1), (i, j), fig=fig)
+                        artist = self._visualize_single(ax, title, x0, x1, grid_length, label_x0, True, add_title)
+                        if type(artist) == AxesImage:
+                            image_artist = artist
+
+                if image_artist is not None:
+                    colorbar_ax = plt.subplot2grid((len(titles), len(x01s) + 1), (0, len(x01s)), len(titles), 1)
+                    plt.colorbar(mappable=image_artist, cax=colorbar_ax)
+                    colorbar_ax.set_yticks(TICK_POS, [self.y_info.tick_formatter(x, None) for x in TICK_POS])
             case "graphs":  # x0 -> y
                 raise NotImplementedError
             case _:
@@ -321,8 +334,10 @@ class LSModel:
         label_x0: bool = False,
         label_x1: bool = False,
         add_title: bool = False,
-    ) -> None:
-        def to_imshow_x(x):
+    ) -> Artist | None:
+        artist = None
+
+        def _to_imshow_x(x):
             return (grid_length - 1) * x
 
         # plot all Visualizations with this title:
@@ -333,54 +348,34 @@ class LSModel:
             y_col_name = data_col_names[-1]
             match viz.viz_type:
                 case "scatter":
-                    ax.scatter(to_imshow_x(data[x1]), to_imshow_x(data[x0]))
+                    artist = ax.scatter(_to_imshow_x(data[x1]), _to_imshow_x(data[x0]))
                 case "map":
                     pt = data.pivot_table(values=y_col_name, index=x0, columns=x1, aggfunc=np.mean)
                     # sns.heatmap(pt, vmin=0, vmax=1, ax=ax)
-                    ax.imshow(pt)
+                    artist = ax.imshow(pt, vmin=0, vmax=1)
                 case _:
                     pass
                     raise NotImplementedError
 
+        # title:
+        if add_title:
+            ax.set_title(title, x=-0.75, y=0.5)
+
         # ticks:
-        num_ticks = 5
-        ticks_poss = np.linspace(0, 1, num_ticks)
         if label_x0:
-            x0_ticks = [self.get_dim_info(x0).tick_formatter(x, None) for x in ticks_poss]
-            ax.set_xticks(to_imshow_x(ticks_poss) + 0.5, x0_ticks)
+            x0_ticks = [self.get_dim_info(x0).tick_formatter(x, None) for x in TICK_POS]
+            ax.set_xticks(_to_imshow_x(TICK_POS) + 0.5, x0_ticks)
             ax.xaxis.set_tick_params(rotation=30)
             ax.set_xlabel(x0)
         else:
             ax.set_xticks([])
         if label_x1:
-            x1_ticks = [self.get_dim_info(x1).tick_formatter(x, None) for x in ticks_poss]
-            ax.set_yticks(to_imshow_x(ticks_poss) + 0.5, x1_ticks)
+            x1_ticks = [self.get_dim_info(x1).tick_formatter(x, None) for x in TICK_POS]
+            ax.set_yticks(_to_imshow_x(TICK_POS) + 0.5, x1_ticks)
             ax.set_ylabel(x1)
         else:
             ax.set_yticks([])
-
-
-def grid_space_2d(length: int, dtype: type) -> NDArray[Any]:
-    """Make grid in 2d unit cube. Returned array has shape (length ** 2, 2).
-
-    Args:
-        length: number of points on one side of the grid, aka. sqrt of the number of points returned.
-        dtype: dtype for the grid.
-    """
-    axis = np.linspace(0, 1, num=length, dtype=dtype)
-    grid_x, grid_y = np.meshgrid(axis, axis)
-    grid_x = grid_x.flatten()
-    grid_y = grid_y.flatten()
-    return np.stack((grid_x, grid_y), axis=1)
-
-
-def grid_space_nd(
-    num_dims: int, grid_length: int, dtype: type = np.float64, bounds: tuple[float, float] = (0.0, 1.0)
-) -> NDArray[Any]:
-    """Generate a `num_dims` dimensional grid of shape (*(grid_length,) * num_dims, num_dims)."""
-    axis = np.linspace(bounds[0], bounds[1], num=grid_length, dtype=dtype)
-    grid_xis = np.meshgrid(*[axis] * num_dims)
-    return np.stack(grid_xis).T
+        return artist
 
 
 def _fix_surface_for_legend(surface):

@@ -58,6 +58,7 @@ def run_phase(
     executor.update_parameters(**conf.slurm.update_parameters)
 
     for conf_idx, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
+        # NOTE set hyperparameters
         ls_conf = {
             # [256, 256] translates to three layers:
             # Linear(i, 256), relu
@@ -66,12 +67,14 @@ def run_phase(
             "policy_kwargs": {"net_arch": [int(c["nn_width"])] * int(c["nn_length"] - 1)},
             "learning_rate": c["learning_rate"],
             "gamma": 1 - c["neg_gamma"],
+            "exploration_final_eps": c["exploration_final_eps"],
         }
         ls_conf_readable = {
             "nn_width": c["nn_width"],
             "nn_length": c["nn_length"],
             "learning_rate": c["learning_rate"],
             "gamma": 1 - c["neg_gamma"],
+            "exploration_final_eps": c["exploration_final_eps"],
         }
         del c
 
@@ -149,6 +152,7 @@ def _train_agent(
     eval_env = make_env(conf.env.name, seed)
 
     # setup wandb
+    project_root = Path(__file__).parent.parent
     run = wandb.init(
         project=conf.wandb.project,
         config={
@@ -165,13 +169,14 @@ def _train_agent(
         sync_tensorboard=True,
         monitor_gym=False,
         save_code=False,
+        dir=project_root,
     )
     assert run is not None
 
     # Basic agent configuration:
     agent_kwargs = {
         "env": env,
-        "verbose": 0,  # WARNING Higher than 0 breaks the console output logging with too long keys! : ) : ) : )
+        "verbose": 0,  # WARNING Higher than 0 breaks the console output logging with too long keys
         "tensorboard_log": f"runs/{run.id}",
         "seed": seed,
     }
@@ -188,8 +193,14 @@ def _train_agent(
         agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore
     else:
         agent = AgentClass.custom_load(save_path=ancestor, seed=seed)
+        # NOTE set hyperparameters:
         agent.learning_rate = ls_conf["learning_rate"]
         agent.gamma = ls_conf["gamma"]
+        print(f"{ls_conf['exploration_final_eps']=}")
+        agent.exploration_rate = ls_conf["exploration_final_eps"]
+        agent.exploration_final_eps = ls_conf["exploration_final_eps"]
+        agent.exploration_initial_eps = ls_conf["exploration_final_eps"]
+        agent.exploration_schedule = lambda _: ls_conf["exploration_final_eps"]
 
     landscape_eval_callback = LandscapeEvalCallback(
         conf=conf,

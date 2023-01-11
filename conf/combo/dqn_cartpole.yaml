@@ -7,7 +7,6 @@ agent:
   hps:
     batch_size: 64
     buffer_size: 100000
-    exploration_final_eps: 0.04
     exploration_fraction: 0.16
     gradient_steps: 128
     learning_starts: 1000
@@ -19,6 +18,7 @@ agent:
     neg_gamma: 0.01
     nn_length: 3
     nn_width: 256
+    exploration_final_eps: 0.04
 eval:
   # seed: 456
   # freq_eval_interval: 5000

@@ -15,15 +15,16 @@ def visualize_sobol_samples(conf: DictConfig) -> None:
     Args:
         conf: Hydra configuration
     """
-    print("VIZ ONLY DOES LR AND GAMMA FOR NOW")
+    print("VIZ ONLY DOES LR, GAMMA, AND EXPLORATION RATE FOR NOW")
     df = construct_ls(conf)
     fig = plt.figure(figsize=(16, 16))
     fig.tight_layout()
-    ax = plt.axes()
-    ax.scatter(df["learning_rate"], 1 - df["neg_gamma"])
-    ax.set_xscale("log")
+    ax = fig.add_subplot(1, 1, 1, projection="3d")  # TODO use actual number of phases
+    ax.scatter(df["learning_rate"], 1 - df["neg_gamma"], df["exploration_final_eps"])
+    # ax.set_xscale("log")
     ax.set_xlabel("learning rate")
     ax.set_ylabel("gamma")
+    ax.set_zlabel("exploration")
     plt.show()
 
 

@@ -9,7 +9,8 @@ from scipy.ndimage import (
     minimum_filter,
 )
 
-from autorl_landscape.ls_models.ls_model import LSModel, Visualization, grid_space_nd
+from autorl_landscape.ls_models.ls_model import LSModel, Visualization
+from autorl_landscape.util.grid_space import grid_space_nd
 
 
 def find_peaks_model(

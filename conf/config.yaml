@@ -6,8 +6,8 @@ defaults: # bigger sub-configurations to swap around
   - _self_
 
 wandb:
-  project: test_exploration
-  entity: konrad
+  project: test_grid_3
+  entity: kwie98
 
 seeds:
   agent: 44 # seed for first agent of a configuration
