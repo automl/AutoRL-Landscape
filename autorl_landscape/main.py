@@ -12,9 +12,6 @@ from matplotlib.backend_bases import PickEvent
 from matplotlib.figure import Figure
 from omegaconf import DictConfig, OmegaConf
 
-from autorl_landscape.analyze.concavity import reject_concavity
-from autorl_landscape.analyze.distributions import check_modality
-from autorl_landscape.analyze.peaks import find_peaks_model
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.linear import LinearLSModel
 from autorl_landscape.ls_models.ls_model import LSModel
@@ -177,8 +174,12 @@ def main() -> None:
             # plt.show()
         case "viz_data":
             visualize_data(args.data)
-        # case "ana_concavity" | "ana_rb" | "ana_peaks" | "ana_modalities":
         case "maps" | "peaks" | "modalities":
+            # lazily import ana-only deps:
+            from autorl_landscape.analyze.concavity import reject_concavity
+            from autorl_landscape.analyze.distributions import check_modality
+            from autorl_landscape.analyze.peaks import find_peaks_model
+
             file = Path(args.data)
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())

@@ -6,6 +6,7 @@ from itertools import combinations
 
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 from matplotlib.artist import Artist
 from matplotlib.image import AxesImage
 from matplotlib.ticker import FuncFormatter
@@ -17,6 +18,7 @@ from autorl_landscape.util.grid_space import grid_space_nd
 from autorl_landscape.util.ls_sampler import DimInfo
 
 TICK_POS = np.linspace(0, 1, 5)
+CMAP = sns.color_palette("rocket", as_cmap=True)
 
 
 @dataclass
@@ -352,7 +354,7 @@ class LSModel:
                 case "map":
                     pt = data.pivot_table(values=y_col_name, index=x0, columns=x1, aggfunc=np.mean)
                     # sns.heatmap(pt, vmin=0, vmax=1, ax=ax)
-                    artist = ax.imshow(pt, vmin=0, vmax=1)
+                    artist = ax.imshow(pt, vmin=0, vmax=1, cmap=CMAP)
                 case _:
                     pass
                     raise NotImplementedError
