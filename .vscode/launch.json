@@ -150,6 +150,41 @@
         "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
       ],
       "justMyCode": false
+    },
+    {
+      "name": "phases viz sobol",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "viz",
+        "sobol",
+        "combo=dqn_cartpole",
+        "ls=grid_3",
+        "slurm=local",
+        "phases=quick",
+        "num_confs=216",
+        "num_seeds=3"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases run debug",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "run",
+        "combo=dqn_cartpole",
+        "ls=debug",
+        "slurm=debug",
+        "phases=quick",
+        "num_confs=2",
+        "num_seeds=1"
+      ],
+      "justMyCode": false
     }
   ]
 }

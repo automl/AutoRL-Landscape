@@ -1,8 +1,7 @@
 # @package _global_
 
 ls:
-  type: Sobol
-  # seed: 123 # landscape sampler rng
+  type: Grid
   dims:
     - nn_width:
         type: Constant
@@ -10,15 +9,15 @@ ls:
         type: Constant
     - learning_rate:
         type: Log
-        base: 1000
-        lower: 0.0001
-        upper: 0.1
+        base: 100
+        lower: 0.000001
+        upper: 0.2
     - neg_gamma:
         type: Log
-        base: 1000 # looks quite extreme
-        lower: 0.0001
+        base: 100
+        lower: 0.000001
         upper: 0.2
-    - exploration:
+    - exploration_final_eps:
         type: Float
         lower: 0.0
         upper: 0.25

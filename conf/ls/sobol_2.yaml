@@ -2,7 +2,6 @@
 
 ls:
   type: Sobol
-  # seed: 123 # landscape sampler rng
   dims:
     - nn_width:
         type: Constant

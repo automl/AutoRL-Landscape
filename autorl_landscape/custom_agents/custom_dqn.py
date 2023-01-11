@@ -266,8 +266,8 @@ class CustomDQN(DQN):
                     save_model._dump_logs()
 
         # set exploration before saving, since exploration profile is set up directly on load
-        save_model.exploration_initial_eps = 0.04
-        save_model.exploration_final_eps = 0.04
+        save_model.exploration_initial_eps = self.exploration_final_eps
+        save_model.exploration_final_eps = self.exploration_final_eps
         # also set learning_starts thing
         save_model.learning_starts = 0
         # save_model.collect_rollout_last_steps = locals["num_collected_steps"]
