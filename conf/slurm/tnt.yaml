@@ -7,3 +7,4 @@ slurm:
     timeout_min: 1000
     slurm_partition: gpu_normal_stud
     gpus_per_node: 1
+    mem_gb: 3
