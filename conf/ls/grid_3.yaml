@@ -10,12 +10,12 @@ ls:
     - learning_rate:
         type: Log
         base: 100
-        lower: 0.000001
+        lower: 0.00001
         upper: 0.2
     - neg_gamma:
         type: Log
         base: 100
-        lower: 0.000001
+        lower: 0.00001
         upper: 0.2
     - exploration_final_eps:
         type: Float
