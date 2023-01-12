@@ -16,9 +16,12 @@ from pandas import DataFrame
 from autorl_landscape.util.compare import iqm
 from autorl_landscape.util.grid_space import grid_space_nd
 from autorl_landscape.util.ls_sampler import DimInfo
+from autorl_landscape.visualize import plot_surface_
 
 TICK_POS = np.linspace(0, 1, 5)
 CMAP = sns.color_palette("rocket", as_cmap=True)
+PROJECTION = "3d"
+# PROJECTION = None
 
 
 @dataclass
@@ -66,6 +69,7 @@ class LSModel:
         # extract ls dimensions info from first row of data:
         dim_dicts: list[dict[str, dict[str, Any]]] = literal_eval(data[0:1]["conf.ls.dims"][0])
         self.dim_info: list[DimInfo] = []
+        """DimInfos for each LS dimension, sorted by name"""
         for d in dim_dicts:
             dim_name, dim_dict = next(iter(d.items()))
             di = DimInfo.from_dim_dict(dim_name, dim_dict)
@@ -73,7 +77,6 @@ class LSModel:
             if di is not None:
                 self.dim_info.append(di)
         self.dim_info = sorted(self.dim_info)  # sorts on dim names
-        """DimInfos for each LS dimension, sorted by name"""
 
         # group runs with the same configuration:
         conf_groups = data.groupby(["meta.conf_index"] + self.get_ls_dim_names())
@@ -311,7 +314,7 @@ class LSModel:
                     label_x0 = i == (len(titles) - 1)  # label on last row
                     for j, (x0, x1) in enumerate(x01s):  # columns
                         add_title = j == 0  # title on first column
-                        ax = plt.subplot2grid((len(titles), len(x01s) + 1), (i, j), fig=fig)
+                        ax = plt.subplot2grid((len(titles), len(x01s) + 1), (i, j), fig=fig, projection=PROJECTION)
                         artist = self._visualize_single(ax, title, x0, x1, grid_length, label_x0, True, add_title)
                         if type(artist) == AxesImage:
                             image_artist = artist
@@ -350,11 +353,18 @@ class LSModel:
             y_col_name = data_col_names[-1]
             match viz.viz_type:
                 case "scatter":
-                    artist = ax.scatter(_to_imshow_x(data[x1]), _to_imshow_x(data[x0]))
+                    if PROJECTION == "3d":
+                        artist = ax.scatter(data[x0], data[x1], 0)
+                    else:
+                        artist = ax.scatter(_to_imshow_x(data[x1]), _to_imshow_x(data[x0]))
                 case "map":
                     pt = data.pivot_table(values=y_col_name, index=x0, columns=x1, aggfunc=np.mean)
-                    # sns.heatmap(pt, vmin=0, vmax=1, ax=ax)
-                    artist = ax.imshow(pt, vmin=0, vmax=1, cmap=CMAP)
+                    pt_T = data.pivot_table(values=y_col_name, index=x1, columns=x0, aggfunc=np.mean)
+                    if PROJECTION == "3d":
+                        artist = plot_surface_(ax, pt)
+                    else:
+                        artist = ax.imshow(pt_T, vmin=0, vmax=1, cmap=CMAP)
+                        # sns.heatmap(pt, vmin=0, vmax=1, ax=ax)
                 case _:
                     pass
                     raise NotImplementedError
@@ -364,19 +374,28 @@ class LSModel:
             ax.set_title(title, x=-0.75, y=0.5)
 
         # ticks:
-        if label_x0:
+        if PROJECTION == "3d":
             x0_ticks = [self.get_dim_info(x0).tick_formatter(x, None) for x in TICK_POS]
-            ax.set_xticks(_to_imshow_x(TICK_POS) + 0.5, x0_ticks)
-            ax.xaxis.set_tick_params(rotation=30)
+            ax.set_xticks(TICK_POS, x0_ticks)
             ax.set_xlabel(x0)
-        else:
-            ax.set_xticks([])
-        if label_x1:
             x1_ticks = [self.get_dim_info(x1).tick_formatter(x, None) for x in TICK_POS]
-            ax.set_yticks(_to_imshow_x(TICK_POS) + 0.5, x1_ticks)
+            ax.set_yticks(TICK_POS, x1_ticks)
             ax.set_ylabel(x1)
+            ax.set_zlim3d(0, 1)
         else:
-            ax.set_yticks([])
+            if label_x0:
+                x0_ticks = [self.get_dim_info(x0).tick_formatter(x, None) for x in TICK_POS]
+                ax.set_xticks(_to_imshow_x(TICK_POS) + 0.5, x0_ticks)
+                ax.xaxis.set_tick_params(rotation=30)
+                ax.set_xlabel(x0)
+            else:
+                ax.set_xticks([])
+            if label_x1:
+                x1_ticks = [self.get_dim_info(x1).tick_formatter(x, None) for x in TICK_POS]
+                ax.set_yticks(_to_imshow_x(TICK_POS) + 0.5, x1_ticks)
+                ax.set_ylabel(x1)
+            else:
+                ax.set_yticks([])
         return artist
 
 

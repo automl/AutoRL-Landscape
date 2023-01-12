@@ -3,9 +3,13 @@ from typing import Any
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
+from matplotlib.artist import Artist
+from matplotlib.axes import Axes
 from omegaconf import DictConfig
+from pandas import DataFrame
 
 from autorl_landscape.util.data import read_wandb_csv
+from autorl_landscape.util.grid_space import grid_space_nd
 from autorl_landscape.util.ls_sampler import construct_ls
 
 
@@ -68,6 +72,16 @@ def visualize_data(file: str) -> None:
         ax.set_zlabel(zlabel, fontsize=12)
         ax.set_title(title, fontsize=16)
     plt.show()
+
+
+def plot_surface_(ax: Axes, pt: DataFrame) -> Artist:
+    """TODO."""
+    grid_length = pt.values.shape[0]
+    grid = grid_space_nd(2, grid_length)
+    grid_x0 = grid[:, :, 0]
+    grid_x1 = grid[:, :, 1]
+
+    return ax.plot_surface(grid_x0, grid_x1, pt.values)
 
 
 # def visualize_ls_model(file: str, sample_percentage: int, viz_samples: bool, retrain: bool, save: bool) -> None:

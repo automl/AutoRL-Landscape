@@ -66,18 +66,18 @@
       "justMyCode": false
     },
     {
-      "name": "phases ana concavity",
+      "name": "phases ana maps",
       "type": "python",
       "request": "launch",
       "program": "/data/conda/envs/ma10/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "ana",
-        "concavity",
+        "maps",
         "--data",
         "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
         "--model",
-        "linear"
+        "triple-gp"
       ],
       "justMyCode": false
     },

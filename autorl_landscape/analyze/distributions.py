@@ -5,7 +5,6 @@ from collections import Counter
 import numpy as np
 from numpy.typing import NDArray
 from pandas import DataFrame
-from pyfolding import FTU
 
 from autorl_landscape.analyze.peaks import find_peaks
 from autorl_landscape.ls_models.ls_model import LSModel, Visualization
@@ -36,6 +35,8 @@ def check_modality(model: LSModel) -> None:
         modess_y.append(modes_y)
 
         # use FTU to classify distribution:
+        from pyfolding import FTU  # lazy import
+
         ftu = FTU(y, routine="c++")
         ftu_PHIs[i] = ftu.folding_statistics  # FTU indicator for uni-modality; > 1 indicates uni-modality
 

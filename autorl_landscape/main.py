@@ -13,9 +13,9 @@ from matplotlib.figure import Figure
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
-from autorl_landscape.ls_models.linear import LinearLSModel
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.ls_models.mock import MockLSModel
+from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
 from autorl_landscape.util.data import read_wandb_csv
@@ -162,7 +162,7 @@ def main() -> None:
                         if args.save and not args.load:
                             model.save(model_folder)
                     case "viz_linear":
-                        model = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None)
                     case "viz_triple_gp":
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
                         model.fit()
@@ -191,7 +191,7 @@ def main() -> None:
                         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
                         model.load(model_folder)
                     case "linear":
-                        model = LinearLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None)
                     case "triple-gp":
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
                         model.fit()
