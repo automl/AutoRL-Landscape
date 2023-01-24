@@ -12,6 +12,8 @@ from scipy.stats.qmc import Sobol
 
 from autorl_landscape.util.grid_space import grid_space_nd
 
+TICK_PRECISION = 5
+
 
 def construct_ls(conf: DictConfig) -> pd.DataFrame:
     """Build landscape according to the passed config and returns a `pd.DataFrame` with samples from it.
@@ -133,7 +135,7 @@ class DimInfo:
                 upper = dim_dict["upper"]
                 u2f: Transformer = lambda x: negator(unit_to_float(x, lower, upper))
                 f2u: Transformer = lambda x: float_to_unit(negator(x), lower, upper)
-                fmt: Formatter = lambda val, _: f"{round(u2f(val), 4)}"
+                fmt: Formatter = lambda val, _: f"{round(u2f(val), TICK_PRECISION)}"
                 di = cls(dim_name_, "Float", lower, upper, u2f, f2u, fmt)
             case "Log":
                 lower = dim_dict["lower"]
@@ -141,7 +143,7 @@ class DimInfo:
                 b = dim_dict["base"]
                 u2l: Transformer = lambda x: negator(unit_to_log(x, b, lower, upper))
                 l2u: Transformer = lambda x: log_to_unit(negator(x), b, lower, upper)
-                fmt: Formatter = lambda val, _: f"{round(u2l(val), 4)}"
+                fmt: Formatter = lambda val, _: f"{round(u2l(val), TICK_PRECISION)}"
                 di = cls(dim_name_, "Log", lower, upper, u2l, l2u, fmt, b)
             case weird_val:
                 raise Exception(f"Weird dimension type {weird_val} found!")

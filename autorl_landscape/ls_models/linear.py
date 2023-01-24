@@ -1,7 +1,7 @@
 from typing import Any
 
 from numpy.typing import NDArray
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.util.interpolate import LinearInterpolator
@@ -11,9 +11,14 @@ class LinearLSModel(LSModel):
     """Linear Interpolation Model."""
 
     def __init__(
-        self, data: DataFrame, dtype: type, y_col: str = "ls_eval/returns", y_bounds: tuple[float, float] | None = None
+        self,
+        data: DataFrame,
+        dtype: type,
+        y_col: str = "ls_eval/returns",
+        y_bounds: tuple[float, float] | None = None,
+        ancestor: Series | None = None,
     ) -> None:
-        super().__init__(data, dtype, y_col, y_bounds)
+        super().__init__(data, dtype, y_col, y_bounds, ancestor)
         self.iqm_model = LinearInterpolator(self.x, self.y_iqm)
         # self.ci_upper_model = LinearNDInterpolator(self.x, self.y_mean + 1.96 * self.y_std)
         # self.ci_lower_model = LinearNDInterpolator(self.x, self.y_mean - 1.96 * self.y_std)

@@ -1,7 +1,7 @@
 from typing import Any
 
 from numpy.typing import NDArray
-from pandas import DataFrame
+from pandas import DataFrame, Series
 from scipy.interpolate import RBFInterpolator
 
 from autorl_landscape.ls_models.ls_model import LSModel
@@ -11,9 +11,14 @@ class RBFInterpolatorLSModel(LSModel):
     """TODO."""
 
     def __init__(
-        self, data: DataFrame, dtype: type, y_col: str = "ls_eval/returns", y_bounds: tuple[float, float] | None = None
+        self,
+        data: DataFrame,
+        dtype: type,
+        y_col: str = "ls_eval/returns",
+        y_bounds: tuple[float, float] | None = None,
+        ancestor: Series | None = None,
     ) -> None:
-        super().__init__(data, dtype, y_col, y_bounds)
+        super().__init__(data, dtype, y_col, y_bounds, ancestor)
         self.iqm_model = RBFInterpolator(self.x, self.y_iqm, kernel="linear")
         self.ci_upper_model = RBFInterpolator(self.x, self.y_ci_upper, kernel="linear")
         self.ci_lower_model = RBFInterpolator(self.x, self.y_ci_lower, kernel="linear")

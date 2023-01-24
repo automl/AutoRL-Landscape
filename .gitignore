@@ -135,6 +135,9 @@ dmypy.json
 /wandb
 /wandb-old
 
+# plt figures
+/images
+
 # idk
 /logs
 /models

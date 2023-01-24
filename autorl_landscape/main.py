@@ -11,6 +11,7 @@ from matplotlib.artist import Artist
 from matplotlib.backend_bases import PickEvent
 from matplotlib.figure import Figure
 from omegaconf import DictConfig, OmegaConf
+from pandas import DataFrame, Series
 
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.ls_model import LSModel
@@ -40,6 +41,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="phases")
     subparsers = parser.add_subparsers()
     subparsers.required = True
+    parser.add_argument("--savefig", action="store_true", dest="savefig", help="Save figures instead of showing them")
 
     # phases run ...
     parser_run = subparsers.add_parser("run", help="run an experiment using the hydra config in conf/")
@@ -114,15 +116,15 @@ def main() -> None:
     # parser_ana_rb.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     # parser_ana_rb.set_defaults(func="ana_rb")
 
-    # phases ana peaks ... (map FTU PHI's)
-    parser_ana_peaks = ana_subparsers.add_parser("peaks", help="")
-    # parser_ana_peaks.add_argument(
-    #     "layer", type=str, choices=["lower", "middle", "upper"], help="which function of the model to analyze"
-    # )
-    parser_ana_peaks.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_peaks.add_argument("--model", type=str, choices=MODELS, required=True)
-    parser_ana_peaks.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
-    parser_ana_peaks.set_defaults(func="peaks")
+    # # phases ana peaks ... (map FTU PHI's)
+    # parser_ana_peaks = ana_subparsers.add_parser("peaks", help="")
+    # # parser_ana_peaks.add_argument(
+    # #     "layer", type=str, choices=["lower", "middle", "upper"], help="which function of the model to analyze"
+    # # )
+    # parser_ana_peaks.add_argument("--data", help="csv file containing data of all runs", required=True)
+    # parser_ana_peaks.add_argument("--model", type=str, choices=MODELS, required=True)
+    # parser_ana_peaks.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    # parser_ana_peaks.set_defaults(func="peaks")
 
     # phases ana modalities ... (scatter all samples and highlight the found modes per conf)
     parser_ana_modalities = ana_subparsers.add_parser("modalities", help="")
@@ -149,11 +151,11 @@ def main() -> None:
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
             for phase_str in phase_strs:
-                phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+                phase_data, ancestor = _split_phases(df, phase_str)
                 match args.func:
                     case "viz_hsgp":
                         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
-                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None)
+                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, ancestor)
                         if args.load:
                             model.load(model_folder)
                         else:
@@ -162,14 +164,15 @@ def main() -> None:
                         if args.save and not args.load:
                             model.save(model_folder)
                     case "viz_linear":
-                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
                     case "viz_triple_gp":
-                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
                         model.fit()
                     case _:
                         parser.print_help()
                         return
-                model.visualize(grid_length=args.grid_length, which="maps")
+                fig_file = Path(f"images/{args.func}/{args.func}_{file.stem}_{phase_str}") if args.savefig else None
+                model.visualize(grid_length=args.grid_length, which="maps", save=fig_file)
             # _add_legend(fig)
             # plt.show()
         case "viz_data":
@@ -177,34 +180,34 @@ def main() -> None:
         case "maps" | "peaks" | "modalities":
             # lazily import ana-only deps:
             from autorl_landscape.analyze.concavity import reject_concavity
-            from autorl_landscape.analyze.distributions import check_modality
+            from autorl_landscape.analyze.modalities import check_modality
             from autorl_landscape.analyze.peaks import find_peaks_model
 
             file = Path(args.data)
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
             for phase_str in phase_strs:
-                phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+                phase_data, ancestor = _split_phases(df, phase_str)
                 match args.model:
                     case "hsgp":
-                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None)
+                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, ancestor)
                         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
                         model.load(model_folder)
                     case "linear":
-                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
                     case "triple-gp":
-                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
                         model.fit()
                     case "mock":
-                        model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
                     case _:
-                        model = LSModel(phase_data, np.float64, "ls_eval/returns", None)
+                        model = LSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
                 match args.func:
                     case "maps":
                         find_peaks_model(model, len(model.dim_info), args.grid_length, bounds=(0, 1))
-                    case "peaks":
-                        check_modality(model)
-                    case "graphs":
+                    # case "peaks":
+                    #     check_modality(model)
+                    case "modalities":
                         check_modality(model)
                     case "ci_graphs":
                         reject_concavity(model, grid_length=args.grid_length)
@@ -212,7 +215,8 @@ def main() -> None:
                     case _:
                         parser.print_help()
                         return
-                model.visualize(grid_length=args.grid_length, which=args.func)
+                fig_file = Path(f"images/{args.func}/{args.func}_{file.stem}_{phase_str}") if args.savefig else None
+                model.visualize(grid_length=args.grid_length, which=args.func, save=fig_file)
             # _add_legend(fig)
             # plt.show()
         case "dl":
@@ -331,3 +335,14 @@ def start_phases(conf: DictConfig) -> None:
             phase_str="phase_0",
             ancestor=None,
         )
+
+
+def _split_phases(df: DataFrame, phase_str: str) -> tuple[DataFrame, Series | None]:
+    phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+    ancestor_id: str = phase_data["meta.ancestor"][0]
+    if ancestor_id == "None":  # first phase has no ancestor
+        ancestor = None
+    else:
+        ancestor = df.loc[Path(ancestor_id).stem]
+
+    return phase_data, ancestor

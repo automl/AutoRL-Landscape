@@ -8,7 +8,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from gpflow.models import SVGP
 from numpy.typing import NDArray
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.util.grid_space import grid_space_2d
@@ -31,8 +31,9 @@ class HSGPModel(LSModel):
         dtype: type = np.float64,
         y_col: str = "ls_eval/returns",
         y_bounds: tuple[float, float] | None = None,
+        ancestor: Series | None = None,
     ) -> None:
-        super().__init__(data, dtype, y_col, y_bounds)
+        super().__init__(data, dtype, y_col, y_bounds, ancestor)
         self.induce_grid_length = induce_grid_length
         gpf.config.set_default_float(dtype)  # WARNING Global!
 

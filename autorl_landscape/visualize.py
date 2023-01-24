@@ -74,14 +74,14 @@ def visualize_data(file: str) -> None:
     plt.show()
 
 
-def plot_surface_(ax: Axes, pt: DataFrame) -> Artist:
+def plot_surface_(ax: Axes, pt: DataFrame, kwargs: dict[str, Any]) -> Artist:
     """TODO."""
     grid_length = pt.values.shape[0]
     grid = grid_space_nd(2, grid_length)
     grid_x0 = grid[:, :, 0]
     grid_x1 = grid[:, :, 1]
 
-    return ax.plot_surface(grid_x0, grid_x1, pt.values)
+    return ax.plot_surface(grid_x0, grid_x1, pt.values, vmin=0, vmax=1, **kwargs)
 
 
 # def visualize_ls_model(file: str, sample_percentage: int, viz_samples: bool, retrain: bool, save: bool) -> None:

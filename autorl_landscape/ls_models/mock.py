@@ -2,7 +2,7 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from autorl_landscape.ls_models.ls_model import LSModel
 
@@ -11,9 +11,14 @@ class MockLSModel(LSModel):
     """Sine waves."""
 
     def __init__(
-        self, data: DataFrame, dtype: type, y_col: str = "ls_eval/returns", y_bounds: tuple[float, float] | None = None
+        self,
+        data: DataFrame,
+        dtype: type,
+        y_col: str = "ls_eval/returns",
+        y_bounds: tuple[float, float] | None = None,
+        ancestor: Series | None = None,
     ) -> None:
-        super().__init__(data, dtype, y_col, y_bounds)
+        super().__init__(data, dtype, y_col, y_bounds, ancestor)
         self.rng = np.random.default_rng(0)
 
     def _get_whatever(self, x: NDArray[Any], offset: float) -> NDArray[Any]:

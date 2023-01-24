@@ -2,7 +2,7 @@ from typing import Any
 
 import gpflow
 from numpy.typing import NDArray
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from autorl_landscape.ls_models.ls_model import LSModel
 
@@ -16,8 +16,9 @@ class TripleGPModel(LSModel):
         dtype: type,
         y_col: str = "ls_eval/returns",
         y_bounds: tuple[float, float] | None = None,
+        ancestor: Series | None = None,
     ) -> None:
-        super().__init__(data, dtype, y_col, y_bounds)
+        super().__init__(data, dtype, y_col, y_bounds, ancestor)
         gpflow.config.set_default_float(dtype)  # WARNING Global!
 
     def fit(self):

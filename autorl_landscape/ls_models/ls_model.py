@@ -3,15 +3,17 @@ from typing import Any
 from ast import literal_eval
 from dataclasses import dataclass
 from itertools import combinations
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib.artist import Artist
+from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from matplotlib.ticker import FuncFormatter
 from numpy.typing import NDArray
-from pandas import DataFrame
+from pandas import DataFrame, Series
 
 from autorl_landscape.util.compare import iqm
 from autorl_landscape.util.grid_space import grid_space_nd
@@ -20,8 +22,8 @@ from autorl_landscape.visualize import plot_surface_
 
 TICK_POS = np.linspace(0, 1, 5)
 CMAP = sns.color_palette("rocket", as_cmap=True)
-PROJECTION = "3d"
-# PROJECTION = None
+# PROJECTION = "3d"
+PROJECTION = None
 
 
 @dataclass
@@ -51,11 +53,13 @@ class LSModel:
         dtype: type,
         y_col: str = "ls_eval/returns",
         y_bounds: tuple[float, float] | None = None,
+        ancestor: Series | None = None,
     ) -> None:
         super().__init__()
 
         self.dtype = dtype
         self.model_layer_names = ["upper", "middle", "lower"]
+        self.ancestor = ancestor
 
         # mainly for visualization:
         if y_bounds is not None:
@@ -118,7 +122,7 @@ class LSModel:
             Visualization(
                 "Raw Return Samples",
                 "scatter",
-                "graphs",
+                "modalities",
                 self.build_df(self.x_samples, self.y_samples, "ls_eval/returns"),
                 {},
                 # {"color": "red"},
@@ -164,14 +168,36 @@ class LSModel:
         for model_layer_name in self.model_layer_names:
             title = f"{model_layer_name.capitalize()} Model"
             func = getattr(self, f"get_{model_layer_name}")
+            if model_layer_name == "middle":
+                kwargs = {"cmap": CMAP}
+            else:
+                kwargs = {"color": (0.5, 0.5, 0.5, 0.5)}
+
             self.add_viz_info(
                 Visualization(
                     title,
                     "map",
                     "maps",
                     self.build_df(grid, func(grid), "ls_eval/returns"),
-                    {},
+                    kwargs,
                 )
+            )
+        if self.ancestor is not None:
+            ancestor_x = np.array(self.ancestor[self.get_ls_dim_names()], dtype=self.dtype).reshape(1, -1)
+            ancestor_y = np.array(np.mean(np.array(self.ancestor[self.y_info.name]))).reshape(1, 1)
+
+            # to unit cube:
+            for i in range(len(self.dim_info)):
+                transformer = self.dim_info[i].ls_to_unit
+                ancestor_x[:, i] = transformer(ancestor_x[:, i])
+            ancestor_y = self.y_info.ls_to_unit(ancestor_y)
+
+            self._viz_infos.extend(
+                [
+                    Visualization(
+                        "Middle Model", "scatter", "maps", self.build_df(ancestor_x, ancestor_y, "ls_eval/returns"), {}
+                    ),
+                ]
             )
 
     def unnormalize(self, df: DataFrame) -> DataFrame:
@@ -198,23 +224,30 @@ class LSModel:
         assert x.shape[1] == len(self.dim_info)
         return DataFrame(np.concatenate([x, y], axis=1), columns=self.get_ls_dim_names() + [y_axis_label])
 
-    def visualize(self, grid_length: int, which: str) -> None:
+    def visualize(self, grid_length: int, which: str, save: Path | None) -> None:
         """Visualize the model over the whole landscape.
 
         Args:
             grid_length: Number of points on the grid on one side.
             which: Which visualization to show.
+            save: Whether to save the figure instead of showing it.
         """
-        num_ls_dims = len(self.dim_info)
-        match num_ls_dims:
-            case 1:
-                self._visualize_1d(grid_length, which)
-            # case 2:
-            #     self._visualize_2d(grid_length, which)
-            case n:
-                if n < 1:
-                    raise Exception(f"Cannot visualize landscape with {n} dimensions!")
-                self._visualize_nd(grid_length, which)
+        fig = self._visualize_nd(grid_length, which)
+        if save is not None:
+            save.parent.mkdir(parents=True, exist_ok=True)
+            fig.suptitle(save.stem, fontsize=20)
+            fig.savefig(save)
+        else:
+            plt.show()
+        # match num_ls_dims:
+        #     case 1:
+        #         self._visualize_1d(grid_length, which)
+        #     case 2:
+        #         self._visualize_2d(grid_length, which)
+        #     case n:
+        #         if n < 1:
+        #             raise Exception(f"Cannot visualize landscape with {n} dimensions!")
+        #         self._visualize_nd(grid_length, which)
 
     def _visualize_1d(self, grid_length: int, which: str) -> None:
         raise NotImplementedError
@@ -299,46 +332,112 @@ class LSModel:
         ax.zaxis.set_major_formatter(FuncFormatter(self.y_info.tick_formatter))
         return
 
-    def _visualize_nd(self, grid_length: int, which: str) -> None:
+    def _visualize_nd(self, grid_length: int, which: str) -> Figure:
         """Visualize e.g. with PCA dim reduction, PCP, marginalizing out dimensions."""
-        self._add_model_viz(grid_length)
         # grid_shape = grid.shape[0:-1]
-        fig = plt.figure(figsize=(16, 10))
+        fig = plt.figure(figsize=(24, 14))
         image_artist = None  # used for colorbar
         match which:
             case "maps" | "peaks":  # x0x1 -> y
+                self._add_model_viz(grid_length)
                 x01s = list(combinations(self.get_ls_dim_names(), 2))  # all 2-combinations of x (ls) dimensions
+                # get unique titles, keeping first appearance order as in self._viz_infos:
                 titles = list(dict.fromkeys([v.title for v in self.get_viz_infos() if v.visualization_group == which]))
 
-                for i, title in enumerate(titles):  # rows
-                    label_x0 = i == (len(titles) - 1)  # label on last row
-                    for j, (x0, x1) in enumerate(x01s):  # columns
-                        add_title = j == 0  # title on first column
-                        ax = plt.subplot2grid((len(titles), len(x01s) + 1), (i, j), fig=fig, projection=PROJECTION)
-                        artist = self._visualize_single(ax, title, x0, x1, grid_length, label_x0, True, add_title)
+                nrows = 1 + len(titles)  # combined 3d, upper map, middle map, lower map
+                height_ratios = [1.25] + [1.0] * len(titles)
+                ncols = 1 + len(x01s) + 1  # title, *x01s, color legend
+                width_ratios = [0.1] + [1.0] * len(x01s) + [0.25]
+                gs = fig.add_gridspec(nrows, ncols, height_ratios=height_ratios, width_ratios=width_ratios)
+
+                # main plots:
+                for i, title in enumerate(titles, start=1):  # rows
+                    label_x0 = i == (nrows - 1)  # label on last row
+                    for j, (x0, x1) in enumerate(x01s, start=1):  # columns
+                        # add_title = j == 0  # title on first column
+                        # ax = plt.subplot2grid((len(titles), len(x01s) + 1), (i, j), fig=fig, projection=PROJECTION)
+                        ax = fig.add_subplot(gs[i, j])
+                        artist = self._viz_single_x0x1y(
+                            ax=ax,
+                            x0=x0,
+                            x1=x1,
+                            match_titles=[title],
+                            grid_length=grid_length,
+                            projection="",
+                            label_x0=label_x0,
+                            label_x1=True,
+                        )
                         if type(artist) == AxesImage:
-                            image_artist = artist
+                            image_artist = artist  # used for colorbar legend
+
+                # titles on the left:
+                for i, title in enumerate(["Combined Model"] + titles):
+                    ax = fig.add_subplot(gs[i, 0])
+                    ax.text(0.5, 0.5, title, ha="right", va="center", fontsize=20)
+                    ax.axis("off")
+
+                # 3d plots on top:
+                for j, (x0, x1) in enumerate(x01s, start=1):
+                    ax = fig.add_subplot(gs[0, j], projection="3d")
+                    artist = self._viz_single_x0x1y(
+                        ax,
+                        [n.capitalize() + " Model" for n in self.model_layer_names],
+                        x0,
+                        x1,
+                        grid_length,
+                        projection="3d",
+                        label_x0=True,
+                        label_x1=True,
+                    )
 
                 if image_artist is not None:
-                    colorbar_ax = plt.subplot2grid((len(titles), len(x01s) + 1), (0, len(x01s)), len(titles), 1)
+                    # colorbar_ax = plt.subplot2grid((len(titles), len(x01s) + 1), (0, len(x01s)), len(titles), 1)
+                    colorbar_ax = fig.add_subplot(gs[:, -1])
                     plt.colorbar(mappable=image_artist, cax=colorbar_ax)
                     colorbar_ax.set_yticks(TICK_POS, [self.y_info.tick_formatter(x, None) for x in TICK_POS])
-            case "graphs":  # x0 -> y
-                raise NotImplementedError
+                    colorbar_ax.set_ylabel(self.y_info.name)
+            case "modalities" | "graphs":  # x0 -> y
+                x0s = self.get_ls_dim_names()
+                # get unique titles, keeping first appearance order as in self._viz_infos:
+                titles = list(dict.fromkeys([v.title for v in self.get_viz_infos() if v.visualization_group == which]))
+
+                nrows = len(titles)  # combined 3d, upper map, middle map, lower map
+                height_ratios = [1.0] * len(titles)
+                ncols = len(x0s)  # title, *x01s, color legend
+                width_ratios = [1.0] * len(x0s)
+                gs = fig.add_gridspec(nrows, ncols, height_ratios=height_ratios, width_ratios=width_ratios)
+
+                # main plots:
+                for i, title in enumerate(titles):  # rows
+                    label_x0 = i == (nrows - 1)  # label on last row
+                    for j, x0 in enumerate(x0s):  # columns
+                        ax = fig.add_subplot(gs[i, j])
+                        artist = self._viz_single_x0y(
+                            ax=ax,
+                            match_titles=[title],
+                            x0=x0,
+                            # grid_length=grid_length,
+                            label_x0=label_x0,
+                            label_y=True,
+                        )
+                        if type(artist) == AxesImage:
+                            image_artist = artist  # used for colorbar legend
             case _:
                 raise NotImplementedError
-        plt.show()
+        # plt.tight_layout()
+        # plt.show()
+        return fig
 
-    def _visualize_single(
+    def _viz_single_x0x1y(
         self,
         ax: plt.Axes,
-        title: str,
+        match_titles: list[str],
         x0: str,
         x1: str,
         grid_length: int,
+        projection: str,
         label_x0: bool = False,
         label_x1: bool = False,
-        add_title: bool = False,
     ) -> Artist | None:
         artist = None
 
@@ -346,57 +445,99 @@ class LSModel:
             return (grid_length - 1) * x
 
         # plot all Visualizations with this title:
-        for viz in [v for v in self.get_viz_infos() if v.title == title]:
+        for viz in [v for v in self.get_viz_infos() if v.title in match_titles]:
             # data = self.unnormalize(viz.xy_norm)
             data = viz.xy_norm
             data_col_names: list[str] = list(data.keys())
             y_col_name = data_col_names[-1]
             match viz.viz_type:
                 case "scatter":
-                    if PROJECTION == "3d":
-                        artist = ax.scatter(data[x0], data[x1], 0)
+                    if projection == "3d":
+                        pass  # too confusing
+                        # artist = ax.scatter(data[x0], data[x1], data[y_col_name])
                     else:
-                        artist = ax.scatter(_to_imshow_x(data[x1]), _to_imshow_x(data[x0]))
+                        artist = ax.scatter(_to_imshow_x(data[x0]), _to_imshow_x(data[x1]))
                 case "map":
                     pt = data.pivot_table(values=y_col_name, index=x0, columns=x1, aggfunc=np.mean)
                     pt_T = data.pivot_table(values=y_col_name, index=x1, columns=x0, aggfunc=np.mean)
-                    if PROJECTION == "3d":
-                        artist = plot_surface_(ax, pt)
+                    if projection == "3d":
+                        artist = plot_surface_(ax, pt, viz.kwargs)
                     else:
-                        artist = ax.imshow(pt_T, vmin=0, vmax=1, cmap=CMAP)
+                        artist = ax.imshow(pt_T, vmin=0, vmax=1, cmap=CMAP, origin="lower")
                         # sns.heatmap(pt, vmin=0, vmax=1, ax=ax)
                 case _:
                     pass
                     raise NotImplementedError
 
-        # title:
-        if add_title:
-            ax.set_title(title, x=-0.75, y=0.5)
+        # # title:
+        # if add_title:
+        #     ax.set_title(plot_title, x=-0.75, y=0.5)
 
         # ticks:
-        if PROJECTION == "3d":
+        if projection == "3d":
             x0_ticks = [self.get_dim_info(x0).tick_formatter(x, None) for x in TICK_POS]
             ax.set_xticks(TICK_POS, x0_ticks)
             ax.set_xlabel(x0)
             x1_ticks = [self.get_dim_info(x1).tick_formatter(x, None) for x in TICK_POS]
             ax.set_yticks(TICK_POS, x1_ticks)
             ax.set_ylabel(x1)
+            y_ticks = [self.y_info.tick_formatter(x, None) for x in TICK_POS]
+            ax.set_zticks(TICK_POS, y_ticks)
+            ax.set_zlabel(self.y_info.name)
             ax.set_zlim3d(0, 1)
         else:
             if label_x0:
                 x0_ticks = [self.get_dim_info(x0).tick_formatter(x, None) for x in TICK_POS]
-                ax.set_xticks(_to_imshow_x(TICK_POS) + 0.5, x0_ticks)
+                ax.set_xticks(_to_imshow_x(TICK_POS), x0_ticks)
                 ax.xaxis.set_tick_params(rotation=30)
                 ax.set_xlabel(x0)
             else:
                 ax.set_xticks([])
             if label_x1:
                 x1_ticks = [self.get_dim_info(x1).tick_formatter(x, None) for x in TICK_POS]
-                ax.set_yticks(_to_imshow_x(TICK_POS) + 0.5, x1_ticks)
+                ax.set_yticks(_to_imshow_x(TICK_POS), x1_ticks)
                 ax.set_ylabel(x1)
             else:
                 ax.set_yticks([])
         return artist
+
+    def _viz_single_x0y(
+        self,
+        ax: plt.Axes,
+        match_titles: list[str],
+        x0: str,
+        # grid_length: int,
+        label_x0: bool = False,
+        label_y: bool = False,
+    ) -> None:
+        # plot all Visualizations with this title:
+        for viz in [v for v in self.get_viz_infos() if v.title in match_titles]:
+            # data = self.unnormalize(viz.xy_norm)
+            data = viz.xy_norm
+            data_col_names: list[str] = list(data.keys())
+            y_col_name = data_col_names[-1]
+            match viz.viz_type:
+                case "scatter":
+                    ax.scatter(data[x0], data[y_col_name])
+                # case "map":
+                #     pt = data.pivot_table(values=y_col_name, index=x0, columns=x1, aggfunc=np.mean)
+                #     pt_T = data.pivot_table(values=y_col_name, index=x1, columns=x0, aggfunc=np.mean)
+                #     ax.imshow(pt_T, vmin=0, vmax=1, cmap=CMAP, origin="lower")
+                case _:
+                    pass
+                    raise NotImplementedError
+        if label_x0:
+            x0_ticks = [self.get_dim_info(x0).tick_formatter(x, None) for x in TICK_POS]
+            ax.set_xticks(TICK_POS, x0_ticks)
+            ax.set_xlabel(x0)
+        else:
+            ax.set_xticks([])
+        if label_y:
+            y_ticks = [self.y_info.tick_formatter(x, None) for x in TICK_POS]
+            ax.set_yticks(TICK_POS, y_ticks)
+            ax.set_ylabel(y_col_name)
+        else:
+            ax.set_yticks([])
 
 
 def _fix_surface_for_legend(surface):
