@@ -21,7 +21,13 @@ def read_wandb_csv(file: Path) -> pd.DataFrame:
     return df
 
 
-# def train_or_load_gpr(x: NDArray[Any], y: NDArray[Any]) -> GaussianProcessClassifier:
-#     gpr = GaussianProcessClassifier(RBF())
-#     gpr.fit(x, y)
-#     return gpr
+def split_phases(df: pd.DataFrame, phase_str: str) -> tuple[pd.DataFrame, pd.Series | None]:
+    """TODO."""
+    phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
+    ancestor_id: str = phase_data["meta.ancestor"][0]
+    if ancestor_id == "None":  # first phase has no ancestor
+        ancestor = None
+    else:
+        ancestor = df.loc[Path(ancestor_id).stem]
+
+    return phase_data, ancestor

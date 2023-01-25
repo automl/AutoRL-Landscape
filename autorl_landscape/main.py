@@ -11,7 +11,6 @@ from matplotlib.artist import Artist
 from matplotlib.backend_bases import PickEvent
 from matplotlib.figure import Figure
 from omegaconf import DictConfig, OmegaConf
-from pandas import DataFrame, Series
 
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.ls_model import LSModel
@@ -19,7 +18,7 @@ from autorl_landscape.ls_models.mock import MockLSModel
 from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
-from autorl_landscape.util.data import read_wandb_csv
+from autorl_landscape.util.data import read_wandb_csv, split_phases
 from autorl_landscape.util.download import download_data
 from autorl_landscape.visualize import (
     visualize_data,
@@ -151,7 +150,7 @@ def main() -> None:
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
             for phase_str in phase_strs:
-                phase_data, ancestor = _split_phases(df, phase_str)
+                phase_data, ancestor = split_phases(df, phase_str)
                 match args.func:
                     case "viz_hsgp":
                         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
@@ -187,7 +186,7 @@ def main() -> None:
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
             for phase_str in phase_strs:
-                phase_data, ancestor = _split_phases(df, phase_str)
+                phase_data, ancestor = split_phases(df, phase_str)
                 match args.model:
                     case "hsgp":
                         model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, ancestor)
@@ -208,7 +207,9 @@ def main() -> None:
                     # case "peaks":
                     #     check_modality(model)
                     case "modalities":
-                        check_modality(model)
+                        # bw = get_avg_bandwidth(df, viz=True)
+                        bw = 0.000427
+                        check_modality(model, bw)
                     case "ci_graphs":
                         reject_concavity(model, grid_length=args.grid_length)
                         raise NotImplementedError
@@ -335,14 +336,3 @@ def start_phases(conf: DictConfig) -> None:
             phase_str="phase_0",
             ancestor=None,
         )
-
-
-def _split_phases(df: DataFrame, phase_str: str) -> tuple[DataFrame, Series | None]:
-    phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-    ancestor_id: str = phase_data["meta.ancestor"][0]
-    if ancestor_id == "None":  # first phase has no ancestor
-        ancestor = None
-    else:
-        ancestor = df.loc[Path(ancestor_id).stem]
-
-    return phase_data, ancestor
