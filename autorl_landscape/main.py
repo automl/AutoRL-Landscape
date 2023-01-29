@@ -2,6 +2,7 @@ from typing import Any, Iterable, TypeVar
 
 import argparse
 from datetime import datetime
+from functools import partial
 from itertools import zip_longest
 from pathlib import Path
 
@@ -131,6 +132,12 @@ def main() -> None:
     parser_ana_modalities.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_modalities.set_defaults(func="modalities", model=None)
 
+    # phases ana concavity ... (scatter all samples and highlight the found modes per conf)
+    parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
+    parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    parser_ana_concavity.set_defaults(func="concavity", model=None)
+
     # phases dl ...
     parser_dl = subparsers.add_parser("dl")
     parser_dl.add_argument("project_name", type=str)
@@ -178,7 +185,6 @@ def main() -> None:
             visualize_data(args.data)
         case "maps" | "peaks" | "modalities":
             # lazily import ana-only deps:
-            from autorl_landscape.analyze.concavity import reject_concavity
             from autorl_landscape.analyze.modalities import check_modality
             from autorl_landscape.analyze.peaks import find_peaks_model
 
@@ -210,9 +216,6 @@ def main() -> None:
                         # bw = get_avg_bandwidth(df, viz=True)
                         bw = 0.000427
                         check_modality(model, bw)
-                    case "ci_graphs":
-                        reject_concavity(model, grid_length=args.grid_length)
-                        raise NotImplementedError
                     case _:
                         parser.print_help()
                         return
@@ -220,6 +223,25 @@ def main() -> None:
                 model.visualize(grid_length=args.grid_length, which=args.func, save=fig_file)
             # _add_legend(fig)
             # plt.show()
+        case "concavity":
+            from autorl_landscape.analyze.concavity import find_biggest_nonconcave
+
+            file = Path(args.data)
+            df = read_wandb_csv(file)
+            phase_strs = sorted(df["meta.phase"].unique())
+            for phase_str in phase_strs:
+                phase_data, _ = split_phases(df, phase_str)
+                model_builder = partial(
+                    RBFInterpolatorLSModel,
+                    data=phase_data,
+                    dtype=np.float64,
+                    y_col="ls_eval/returns",
+                    y_bounds=None,
+                    ancestor=None,
+                )
+                print(f"{phase_str}:")
+                biggest_rejecting_ci = find_biggest_nonconcave(model_builder, args.grid_length)
+                print(f"Concavity can be rejected for CI's <= {biggest_rejecting_ci}")
         case "dl":
             download_data(ENTITY, args.project_name)
         case _:

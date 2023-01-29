@@ -185,6 +185,20 @@
         "num_seeds=1"
       ],
       "justMyCode": false
+    },
+    {
+      "name": "phases ana concavity",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "ana",
+        "concavity",
+        "--data",
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
+      ],
+      "justMyCode": false
     }
   ]
 }

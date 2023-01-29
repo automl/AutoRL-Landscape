@@ -8,7 +8,7 @@ from autorl_landscape.ls_models.ls_model import LSModel
 
 
 class RBFInterpolatorLSModel(LSModel):
-    """TODO."""
+    """RBF Interpolated model with variable ci size."""
 
     def __init__(
         self,
@@ -17,8 +17,9 @@ class RBFInterpolatorLSModel(LSModel):
         y_col: str = "ls_eval/returns",
         y_bounds: tuple[float, float] | None = None,
         ancestor: Series | None = None,
+        ci: float = 0.95,
     ) -> None:
-        super().__init__(data, dtype, y_col, y_bounds, ancestor)
+        super().__init__(data, dtype, y_col, y_bounds, ancestor, ci)
         self.iqm_model = RBFInterpolator(self.x, self.y_iqm, kernel="linear")
         self.ci_upper_model = RBFInterpolator(self.x, self.y_ci_upper, kernel="linear")
         self.ci_lower_model = RBFInterpolator(self.x, self.y_ci_lower, kernel="linear")

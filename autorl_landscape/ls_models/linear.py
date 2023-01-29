@@ -8,7 +8,7 @@ from autorl_landscape.util.interpolate import LinearInterpolator
 
 
 class LinearLSModel(LSModel):
-    """Linear Interpolation Model."""
+    """Linear Interpolation Model (unused)."""
 
     def __init__(
         self,

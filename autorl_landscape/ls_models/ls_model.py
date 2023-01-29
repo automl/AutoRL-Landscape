@@ -45,7 +45,16 @@ class Visualization:
 
 
 class LSModel:
-    """A model for the hyperparameter landscape."""
+    """A model for the hyperparameter landscape.
+
+    Args:
+        data: df with samples of the phase that should be modelled
+        dtype: mostly unused.
+        y_col: which performance metric should be used
+        y_bounds: used for normalizing scores to [0, 1]
+        ancestor: optional, for marking the best policy in visualizations
+        ci: percentage of performance values of a single configuration that should be inside lower and upper.
+    """
 
     def __init__(
         self,
@@ -54,6 +63,7 @@ class LSModel:
         y_col: str = "ls_eval/returns",
         y_bounds: tuple[float, float] | None = None,
         ancestor: Series | None = None,
+        ci: float = 0.95,
     ) -> None:
         super().__init__()
 
@@ -104,18 +114,15 @@ class LSModel:
         self.y_samples = self.y.reshape(-1, 1)
         """(num_confs * samples_per_conf, 1)"""
 
+        upper_quantile = 1 - ((1 - ci) / 2)
+        lower_quantile = 0 + ((1 - ci) / 2)
+
         # statistical information about each configuration assuming a normal distribution:
-        self.y_mean = np.mean(self.y, axis=1, keepdims=True)
-        """(num_confs, 1)"""
-        self.y_std = np.std(self.y, axis=1, keepdims=True)
-        """(num_confs, 1)"""
         self.y_iqm = iqm(self.y, axis=1).reshape(-1, 1)
         """(num_confs, 1)"""
-        self.y_ci_upper = np.quantile(self.y, 0.975, method="median_unbiased", axis=1, keepdims=True)
-        # self.y_ci_upper = np.quantile(self.y, 0.8, method="median_unbiased", axis=1, keepdims=True)
+        self.y_ci_upper = np.quantile(self.y, upper_quantile, method="median_unbiased", axis=1, keepdims=True)
         """(num_confs, 1)"""
-        self.y_ci_lower = np.quantile(self.y, 0.025, method="median_unbiased", axis=1, keepdims=True)
-        # self.y_ci_lower = np.quantile(self.y, 0.2, method="median_unbiased", axis=1, keepdims=True)
+        self.y_ci_lower = np.quantile(self.y, lower_quantile, method="median_unbiased", axis=1, keepdims=True)
         """(num_confs, 1)"""
 
         self._viz_infos: list[Visualization] = [
