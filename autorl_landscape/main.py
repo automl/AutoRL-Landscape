@@ -29,7 +29,7 @@ from autorl_landscape.visualize import (
 
 ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 51
-MODELS = ["hsgp", "linear", "triple-gp", "mock"]
+MODELS = ["hsgp", "rbf", "triple-gp", "mock"]
 VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
 T = TypeVar("T")
 
@@ -108,35 +108,23 @@ def main() -> None:
     parser_ana_maps.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_maps.set_defaults(func="maps")
 
-    # # phases ana rb ...
-    # parser_ana_rb = ana_subparsers.add_parser("rb", help="")
-    # parser_ana_rb.add_argument("side", type=str, choices=["lower", "upper"], help="which rubber band to calculate")
-    # parser_ana_rb.add_argument("--data", help="csv file containing data of all runs", required=True)
-    # parser_ana_rb.add_argument("--model", type=str, choices=MODELS, required=True)
-    # parser_ana_rb.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
-    # parser_ana_rb.set_defaults(func="ana_rb")
-
-    # # phases ana peaks ... (map FTU PHI's)
-    # parser_ana_peaks = ana_subparsers.add_parser("peaks", help="")
-    # # parser_ana_peaks.add_argument(
-    # #     "layer", type=str, choices=["lower", "middle", "upper"], help="which function of the model to analyze"
-    # # )
-    # parser_ana_peaks.add_argument("--data", help="csv file containing data of all runs", required=True)
-    # parser_ana_peaks.add_argument("--model", type=str, choices=MODELS, required=True)
-    # parser_ana_peaks.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
-    # parser_ana_peaks.set_defaults(func="peaks")
-
-    # phases ana modalities ... (scatter all samples and highlight the found modes per conf)
+    # phases ana modalities ...
     parser_ana_modalities = ana_subparsers.add_parser("modalities", help="")
     parser_ana_modalities.add_argument("--data", help="csv file containing data of all runs", required=True)
     parser_ana_modalities.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_modalities.set_defaults(func="modalities", model=None)
 
-    # phases ana concavity ... (scatter all samples and highlight the found modes per conf)
+    # phases ana concavity ...
     parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
     parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
     parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_concavity.set_defaults(func="concavity", model=None)
+
+    # phases ana graphs ...
+    parser_ana_graphs = ana_subparsers.add_parser("graphs", help="")
+    parser_ana_graphs.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_graphs.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    parser_ana_graphs.set_defaults(func="graphs", model=None)
 
     # phases dl ...
     parser_dl = subparsers.add_parser("dl")
@@ -157,11 +145,11 @@ def main() -> None:
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
             for phase_str in phase_strs:
-                phase_data, ancestor = split_phases(df, phase_str)
+                phase_data, best_conf = split_phases(df, phase_str)
                 match args.func:
                     case "viz_hsgp":
                         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
-                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, ancestor)
+                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, best_conf)
                         if args.load:
                             model.load(model_folder)
                         else:
@@ -170,15 +158,15 @@ def main() -> None:
                         if args.save and not args.load:
                             model.save(model_folder)
                     case "viz_linear":
-                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                     case "viz_triple_gp":
-                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                         model.fit()
                     case _:
                         parser.print_help()
                         return
                 fig_file = Path(f"images/{args.func}/{args.func}_{file.stem}_{phase_str}") if args.savefig else None
-                model.visualize(grid_length=args.grid_length, which="maps", save=fig_file)
+                model.visualize(grid_length=args.grid_length, viz_group="maps", save=fig_file)
             # _add_legend(fig)
             # plt.show()
         case "viz_data":
@@ -192,35 +180,32 @@ def main() -> None:
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
             for phase_str in phase_strs:
-                phase_data, ancestor = split_phases(df, phase_str)
+                phase_data, best_conf = split_phases(df, phase_str)
                 match args.model:
                     case "hsgp":
-                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, ancestor)
+                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, best_conf)
                         model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
                         model.load(model_folder)
-                    case "linear":
-                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
+                    case "rbf":
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                     case "triple-gp":
-                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                         model.fit()
                     case "mock":
-                        model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
+                        model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                     case _:
-                        model = LSModel(phase_data, np.float64, "ls_eval/returns", None, ancestor)
+                        model = LSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                 match args.func:
                     case "maps":
-                        find_peaks_model(model, len(model.dim_info), args.grid_length, bounds=(0, 1))
-                    # case "peaks":
-                    #     check_modality(model)
+                        if not isinstance(model, RBFInterpolatorLSModel):
+                            find_peaks_model(model, len(model.dim_info), args.grid_length, bounds=(0, 1))
                     case "modalities":
-                        # bw = get_avg_bandwidth(df, viz=True)
-                        bw = 0.000427
-                        check_modality(model, bw)
+                        check_modality(model, args.grid_length)
                     case _:
                         parser.print_help()
                         return
                 fig_file = Path(f"images/{args.func}/{args.func}_{file.stem}_{phase_str}") if args.savefig else None
-                model.visualize(grid_length=args.grid_length, which=args.func, save=fig_file)
+                model.visualize(grid_length=args.grid_length, viz_group=args.func, save=fig_file)
             # _add_legend(fig)
             # plt.show()
         case "concavity":

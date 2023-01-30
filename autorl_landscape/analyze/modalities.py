@@ -1,70 +1,37 @@
-from typing import Any
-
-from collections import Counter
-
-import matplotlib.pyplot as plt
 import numpy as np
-from KDEpy.FFTKDE import FFTKDE
-from numpy.typing import NDArray
+from scipy.interpolate import NearestNDInterpolator
 
-from autorl_landscape.ls_models.ls_model import LSModel, Visualization
-
-KDE_GRID_LENGTH = 1000
+from autorl_landscape.ls_models.ls_model import CMAP_DIVERGING, LSModel, Visualization
+from autorl_landscape.util.grid_space import grid_space_nd
 
 
-def check_modality(model: LSModel, bw: float) -> None:
-    """Count modes of per-configuration return distributions."""
-    bw = 0.05
-    # min_counts: list[int] = []
-    max_counts: list[int] = []
-    modess_x: list[NDArray[Any]] = []
-    modess_y: list[NDArray[Any]] = []
-    # num_modes = np.zeros((model.y.shape[0], 1))
-    for i, (x, y) in enumerate(zip(model.x, model.y)):  # for every conf:
-        kde_x = np.linspace(-0.01, 1.01, KDE_GRID_LENGTH)
-        kde_y = FFTKDE(kernel="tri", bw=bw).fit(y).evaluate(kde_x)
-        # kde_y = TruncatedNormalKDE(bw=bw, a=0, b=1).fit(y).evaluate(kde_x)
+def check_modality(model: LSModel, grid_length: int) -> None:
+    """Check per-configuration data for uni-modality using FTU."""
+    from pyfolding import FTU  # lazy import
 
-        fig = plt.figure(figsize=(16, 12))
-        ax = fig.gca()
-        ax.scatter(y, np.zeros_like(y))
-        ax.plot(kde_x, kde_y)
-        ax.set_xlim((-1, 2))
-        plt.show()
+    phis = np.zeros((model.y.shape[0], 1))
+    for i, y in enumerate(model.y):
+        ftu = FTU(y, routine="c++")
+        phis[i] = ftu.folding_statistics  # FTU indicator for uni-modality; > 1 indicates uni-modality
 
-        continue
+    phi_interp = NearestNDInterpolator(model.x, phis)
 
-        # max_count = len(intervals)
-        # max_counts.append(max_count)
-        # num_modes[i] = max_count
+    phi_discrete = np.copy(phis)
+    phi_discrete[phi_discrete >= 1.0] = 2.0
+    phi_discrete[phi_discrete < 1.0] = 0.0
 
-        # modes_x = np.stack([x] * max_count)
-        # modes_y = np.array([np.mean(y[list(interval)]) for interval in intervals])
-        # modess_x.append(modes_x)
-        # modess_y.append(modes_y)
+    phi_discrete_interp = NearestNDInterpolator(model.x, phi_discrete)
 
-    # min_counter = Counter(min_counts)
-    max_counter = Counter(max_counts)
-    # print(f"Minima in histogram: {sorted(min_counter.items())}")
-    print(f"Maxima in histogram: {sorted(max_counter.items())}")
+    num_dims = len(model.dim_info)
+    grid = grid_space_nd(num_dims, grid_length).reshape(-1, num_dims)
 
-    # model.add_viz_info(
-    #     Visualization(
-    #         "Per-Configuration Mode Count",
-    #         "trisurf",
-    #         "peaks",
-    #         DataFrame(num_modes, columns=["mode count"]),
-    #         {"cmap": "viridis"},
-    #     )
-    # )
-    modess_x = np.concatenate(modess_x)
-    modess_y = np.concatenate(modess_y)
-    model.add_viz_info(
-        Visualization(
-            "Per-Configuration Modes",
-            "scatter",
-            "modalities",
-            model.build_df(modess_x, modess_y, "modes"),
-            {"color": "red", "alpha": 0.75},
+    for title, interp in [("Unimodality", phi_interp), ("Unimodality (discretized)", phi_discrete_interp)]:
+        model.add_viz_info(
+            Visualization(
+                title,
+                "map",
+                "modalities",
+                model.build_df(grid, interp(grid), "Φ"),
+                CMAP_DIVERGING,
+            )
         )
-    )

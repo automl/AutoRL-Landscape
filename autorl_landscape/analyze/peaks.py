@@ -34,7 +34,7 @@ def find_peaks_model(
                 "scatter",
                 "maps",
                 model.build_df(grid[min_mask], y_grid[min_mask].reshape(-1, 1), "minima"),
-                {"color": "red", "alpha": 0.75, "marker": "v"},
+                {"color": "white", "marker": "v", "edgecolors": "black", "s": 100},
             )
         )
         model.add_viz_info(
@@ -43,7 +43,7 @@ def find_peaks_model(
                 "scatter",
                 "maps",
                 model.build_df(grid[max_mask], y_grid[max_mask].reshape(-1, 1), "maxima"),
-                {"color": "red", "alpha": 0.75, "marker": "^"},
+                {"color": "white", "marker": "^", "edgecolors": "black", "s": 100},
             )
         )
 

@@ -1,6 +1,7 @@
 from typing import Any
 
 from ast import literal_eval
+from copy import deepcopy
 from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
@@ -8,9 +9,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from matplotlib.artist import Artist
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import TwoSlopeNorm
 from matplotlib.figure import Figure
-from matplotlib.image import AxesImage
 from matplotlib.ticker import FuncFormatter
 from numpy.typing import NDArray
 from pandas import DataFrame, Series
@@ -22,6 +23,10 @@ from autorl_landscape.visualize import plot_surface_
 
 TICK_POS = np.linspace(0, 1, 5)
 CMAP = sns.color_palette("rocket", as_cmap=True)
+CMAP_DIVERGING = {
+    "cmap": sns.color_palette("vlag", as_cmap=True),
+    "norm": TwoSlopeNorm(vmin=0.0, vcenter=1.0, vmax=2.0),
+}
 # PROJECTION = "3d"
 PROJECTION = None
 
@@ -34,7 +39,7 @@ class Visualization:
     """Title for the plot (Visualizations with matching titles are drawn on the same `Axes`)"""
     viz_type: str
     """scatter, trisurf, etc."""
-    visualization_group: str
+    viz_group: str
     """For allocating a Visualization to an image (combination of Visualizations)"""
     # x_samples: NDArray[Any]
     # y_samples: NDArray[Any]
@@ -62,14 +67,14 @@ class LSModel:
         dtype: type,
         y_col: str = "ls_eval/returns",
         y_bounds: tuple[float, float] | None = None,
-        ancestor: Series | None = None,
+        best_conf: Series | None = None,
         ci: float = 0.95,
     ) -> None:
         super().__init__()
 
         self.dtype = dtype
         self.model_layer_names = ["upper", "middle", "lower"]
-        self.ancestor = ancestor
+        self.best_conf = best_conf
 
         # mainly for visualization:
         if y_bounds is not None:
@@ -129,7 +134,7 @@ class LSModel:
             Visualization(
                 "Raw Return Samples",
                 "scatter",
-                "modalities",
+                "graphs",
                 self.build_df(self.x_samples, self.y_samples, "ls_eval/returns"),
                 {},
                 # {"color": "red"},
@@ -176,22 +181,27 @@ class LSModel:
             title = f"{model_layer_name.capitalize()} Model"
             func = getattr(self, f"get_{model_layer_name}")
             if model_layer_name == "middle":
-                kwargs = {"cmap": CMAP}
+                kwargs = {"cmap": CMAP, "vmin": 0, "vmax": 1}
             else:
-                kwargs = {"color": (0.5, 0.5, 0.5, 0.5)}
+                kwargs = {
+                    "color": (0.5, 0.5, 0.5, 0.3),
+                    "vmin": 0,
+                    "vmax": 1,
+                    "cmap": CMAP,
+                }
 
             self.add_viz_info(
                 Visualization(
                     title,
-                    "map",
+                    "contour",
                     "maps",
                     self.build_df(grid, func(grid), "ls_eval/returns"),
                     kwargs,
                 )
             )
-        if self.ancestor is not None:
-            ancestor_x = np.array(self.ancestor[self.get_ls_dim_names()], dtype=self.dtype).reshape(1, -1)
-            ancestor_y = np.array(np.mean(np.array(self.ancestor[self.y_info.name]))).reshape(1, 1)
+        if self.best_conf is not None:
+            ancestor_x = np.array(self.best_conf[self.get_ls_dim_names()], dtype=self.dtype).reshape(1, -1)
+            ancestor_y = np.array(np.mean(np.array(self.best_conf[self.y_info.name]))).reshape(1, 1)
 
             # to unit cube:
             for i in range(len(self.dim_info)):
@@ -202,7 +212,11 @@ class LSModel:
             self._viz_infos.extend(
                 [
                     Visualization(
-                        "Middle Model", "scatter", "maps", self.build_df(ancestor_x, ancestor_y, "ls_eval/returns"), {}
+                        "Middle Model",
+                        "scatter",
+                        "maps",
+                        self.build_df(ancestor_x, ancestor_y, "ls_eval/returns"),
+                        {"color": "white", "marker": "*", "edgecolors": "black", "s": 100},
                     ),
                 ]
             )
@@ -231,19 +245,19 @@ class LSModel:
         assert x.shape[1] == len(self.dim_info)
         return DataFrame(np.concatenate([x, y], axis=1), columns=self.get_ls_dim_names() + [y_axis_label])
 
-    def visualize(self, grid_length: int, which: str, save: Path | None) -> None:
+    def visualize(self, grid_length: int, viz_group: str, save: Path | None) -> None:
         """Visualize the model over the whole landscape.
 
         Args:
             grid_length: Number of points on the grid on one side.
-            which: Which visualization to show.
+            viz_group: Which visualization to show.
             save: Whether to save the figure instead of showing it.
         """
-        fig = self._visualize_nd(grid_length, which)
+        fig = self._visualize_nd(grid_length, viz_group)
         if save is not None:
             save.parent.mkdir(parents=True, exist_ok=True)
             fig.suptitle(save.stem, fontsize=20)
-            fig.savefig(save)
+            fig.savefig(save, bbox_inches="tight")
         else:
             plt.show()
         # match num_ls_dims:
@@ -339,17 +353,19 @@ class LSModel:
         ax.zaxis.set_major_formatter(FuncFormatter(self.y_info.tick_formatter))
         return
 
-    def _visualize_nd(self, grid_length: int, which: str) -> Figure:
+    def _visualize_nd(self, grid_length: int, viz_group: str) -> Figure:
         """Visualize e.g. with PCA dim reduction, PCP, marginalizing out dimensions."""
         # grid_shape = grid.shape[0:-1]
         fig = plt.figure(figsize=(24, 14))
-        image_artist = None  # used for colorbar
-        match which:
-            case "maps" | "peaks":  # x0x1 -> y
+        titles = list(dict.fromkeys([v.title for v in self.get_viz_infos() if v.viz_group == viz_group]))
+        match viz_group:
+            # case "maps" | "peaks" | "modalities":  # x0x1 -> y
+            case "maps":  # x0x1 -> y
                 self._add_model_viz(grid_length)
+                # re-do titles after adding more plots:
+                titles = list(dict.fromkeys([v.title for v in self.get_viz_infos() if v.viz_group == viz_group]))
                 x01s = list(combinations(self.get_ls_dim_names(), 2))  # all 2-combinations of x (ls) dimensions
                 # get unique titles, keeping first appearance order as in self._viz_infos:
-                titles = list(dict.fromkeys([v.title for v in self.get_viz_infos() if v.visualization_group == which]))
 
                 nrows = 1 + len(titles)  # combined 3d, upper map, middle map, lower map
                 height_ratios = [1.25] + [1.0] * len(titles)
@@ -361,10 +377,8 @@ class LSModel:
                 for i, title in enumerate(titles, start=1):  # rows
                     label_x0 = i == (nrows - 1)  # label on last row
                     for j, (x0, x1) in enumerate(x01s, start=1):  # columns
-                        # add_title = j == 0  # title on first column
-                        # ax = plt.subplot2grid((len(titles), len(x01s) + 1), (i, j), fig=fig, projection=PROJECTION)
                         ax = fig.add_subplot(gs[i, j])
-                        artist = self._viz_single_x0x1y(
+                        self._viz_single_x0x1y(
                             ax=ax,
                             x0=x0,
                             x1=x1,
@@ -374,8 +388,6 @@ class LSModel:
                             label_x0=label_x0,
                             label_x1=True,
                         )
-                        if type(artist) == AxesImage:
-                            image_artist = artist  # used for colorbar legend
 
                 # titles on the left:
                 for i, title in enumerate(["Combined Model"] + titles):
@@ -386,7 +398,7 @@ class LSModel:
                 # 3d plots on top:
                 for j, (x0, x1) in enumerate(x01s, start=1):
                     ax = fig.add_subplot(gs[0, j], projection="3d")
-                    artist = self._viz_single_x0x1y(
+                    self._viz_single_x0x1y(
                         ax,
                         [n.capitalize() + " Model" for n in self.model_layer_names],
                         x0,
@@ -397,16 +409,49 @@ class LSModel:
                         label_x1=True,
                     )
 
-                if image_artist is not None:
-                    # colorbar_ax = plt.subplot2grid((len(titles), len(x01s) + 1), (0, len(x01s)), len(titles), 1)
-                    colorbar_ax = fig.add_subplot(gs[:, -1])
-                    plt.colorbar(mappable=image_artist, cax=colorbar_ax)
-                    colorbar_ax.set_yticks(TICK_POS, [self.y_info.tick_formatter(x, None) for x in TICK_POS])
-                    colorbar_ax.set_ylabel(self.y_info.name)
-            case "modalities" | "graphs":  # x0 -> y
+                # colorbar legend:
+                colorbar_ax = fig.add_subplot(gs[:, -1])
+                plt.colorbar(mappable=ScalarMappable(norm=None, cmap=CMAP), cax=colorbar_ax)
+                colorbar_ax.set_yticks(TICK_POS, [self.y_info.tick_formatter(x, None) for x in TICK_POS])
+                colorbar_ax.set_ylabel(self.y_info.name)
+            case "modalities":
+                x01s = list(combinations(self.get_ls_dim_names(), 2))  # all 2-combinations of x (ls) dimensions
+                print(titles)
+
+                nrows = len(titles)  # 1
+                height_ratios = [1.0] * len(titles)  # [1.0]
+                ncols = 1 + len(x01s) + 1
+                width_ratios = [1.0] + [1.0] * len(x01s) + [0.25]
+                gs = fig.add_gridspec(nrows, ncols, height_ratios=height_ratios, width_ratios=width_ratios)
+
+                for i, title in enumerate(titles):  # rows
+                    for j, (x0, x1) in enumerate(x01s, start=1):  # columns
+                        ax = fig.add_subplot(gs[i, j])
+                        self._viz_single_x0x1y(
+                            ax=ax,
+                            x0=x0,
+                            x1=x1,
+                            match_titles=[title],
+                            grid_length=grid_length,
+                            projection="",
+                            label_x0=True,
+                            label_x1=True,
+                        )
+
+                # titles on the left:
+                for i, title in enumerate(titles):
+                    ax = fig.add_subplot(gs[i, 0])
+                    ax.text(0.5, 0.5, title, ha="right", va="center", fontsize=20)
+                    ax.axis("off")
+
+                # colorbar legend:
+                colorbar_ax = fig.add_subplot(gs[:, -1])
+                plt.colorbar(mappable=ScalarMappable(**CMAP_DIVERGING), cax=colorbar_ax)
+                # colorbar_ax.set_yticks(TICK_POS, [self.y_info.tick_formatter(x, None) for x in TICK_POS])
+                colorbar_ax.set_ylabel("PHI")
+            case "graphs":  # x0 -> y
                 x0s = self.get_ls_dim_names()
                 # get unique titles, keeping first appearance order as in self._viz_infos:
-                titles = list(dict.fromkeys([v.title for v in self.get_viz_infos() if v.visualization_group == which]))
 
                 nrows = len(titles)  # combined 3d, upper map, middle map, lower map
                 height_ratios = [1.0] * len(titles)
@@ -419,7 +464,7 @@ class LSModel:
                     label_x0 = i == (nrows - 1)  # label on last row
                     for j, x0 in enumerate(x0s):  # columns
                         ax = fig.add_subplot(gs[i, j])
-                        artist = self._viz_single_x0y(
+                        self._viz_single_x0y(
                             ax=ax,
                             match_titles=[title],
                             x0=x0,
@@ -427,8 +472,6 @@ class LSModel:
                             label_x0=label_x0,
                             label_y=True,
                         )
-                        if type(artist) == AxesImage:
-                            image_artist = artist  # used for colorbar legend
             case _:
                 raise NotImplementedError
         # plt.tight_layout()
@@ -445,13 +488,11 @@ class LSModel:
         projection: str,
         label_x0: bool = False,
         label_x1: bool = False,
-    ) -> Artist | None:
-        artist = None
-
+    ) -> None:
         def _to_imshow_x(x):
             return (grid_length - 1) * x
 
-        # plot all Visualizations with this title:
+        # plot all Visualizations matching the titles given:
         for viz in [v for v in self.get_viz_infos() if v.title in match_titles]:
             # data = self.unnormalize(viz.xy_norm)
             data = viz.xy_norm
@@ -463,22 +504,25 @@ class LSModel:
                         pass  # too confusing
                         # artist = ax.scatter(data[x0], data[x1], data[y_col_name])
                     else:
-                        artist = ax.scatter(_to_imshow_x(data[x0]), _to_imshow_x(data[x1]))
-                case "map":
+                        ax.scatter(_to_imshow_x(data[x0]), _to_imshow_x(data[x1]), **viz.kwargs, zorder=10)
+                case "map" | "contour":
                     pt = data.pivot_table(values=y_col_name, index=x0, columns=x1, aggfunc=np.mean)
                     pt_T = data.pivot_table(values=y_col_name, index=x1, columns=x0, aggfunc=np.mean)
                     if projection == "3d":
-                        artist = plot_surface_(ax, pt, viz.kwargs)
+                        kwargs_ = deepcopy(viz.kwargs)
+                        if viz.title in ["Upper Model", "Lower Model"]:
+                            del kwargs_["cmap"]
+                        plot_surface_(ax, pt, kwargs_)
                     else:
-                        artist = ax.imshow(pt_T, vmin=0, vmax=1, cmap=CMAP, origin="lower")
-                        # sns.heatmap(pt, vmin=0, vmax=1, ax=ax)
+                        kwargs_ = {k: v for k, v in viz.kwargs.items() if k != "color"}
+                        if viz.viz_type == "map":
+                            ax.imshow(pt_T, origin="lower", **kwargs_, zorder=0)
+                        else:
+                            ax.contourf(pt_T, **kwargs_, zorder=0)
+                        ax.set_aspect("equal", "box")
                 case _:
                     pass
                     raise NotImplementedError
-
-        # # title:
-        # if add_title:
-        #     ax.set_title(plot_title, x=-0.75, y=0.5)
 
         # ticks:
         if projection == "3d":
@@ -506,7 +550,7 @@ class LSModel:
                 ax.set_ylabel(x1)
             else:
                 ax.set_yticks([])
-        return artist
+        return
 
     def _viz_single_x0y(
         self,

@@ -81,7 +81,7 @@ def plot_surface_(ax: Axes, pt: DataFrame, kwargs: dict[str, Any]) -> Artist:
     grid_x0 = grid[:, :, 0]
     grid_x1 = grid[:, :, 1]
 
-    return ax.plot_surface(grid_x0, grid_x1, pt.values, vmin=0, vmax=1, **kwargs)
+    return ax.plot_surface(grid_x0, grid_x1, pt.values, **kwargs)
 
 
 # def visualize_ls_model(file: str, sample_percentage: int, viz_samples: bool, retrain: bool, save: bool) -> None:

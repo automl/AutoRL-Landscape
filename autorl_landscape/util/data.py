@@ -22,12 +22,21 @@ def read_wandb_csv(file: Path) -> pd.DataFrame:
 
 
 def split_phases(df: pd.DataFrame, phase_str: str) -> tuple[pd.DataFrame, pd.Series | None]:
-    """TODO."""
+    """Returns data belonging to the specified phase, as well as that phase's chosen best configuration."""
     phase_data = df[df["meta.phase"] == phase_str].sort_values("meta.conf_index")
-    ancestor_id: str = phase_data["meta.ancestor"][0]
-    if ancestor_id == "None":  # first phase has no ancestor
-        ancestor = None
+    # query best configuration by looking at data from next phase:
+    phase_i = int(phase_str.split("_")[-1])
+    phase_str_ = f"phase_{phase_i + 1}"
+    phase_data_ = df[df["meta.phase"] == phase_str_].sort_values("meta.conf_index")
+    if len(phase_data_) == 0:
+        best_conf = None
     else:
-        ancestor = df.loc[Path(ancestor_id).stem]
+        best_conf_id: str = phase_data_["meta.ancestor"][0]
+        best_conf = df.loc[Path(best_conf_id).stem]
+    # ancestor_id: str = phase_data["meta.ancestor"][0]
+    # if ancestor_id == "None":  # first phase has no ancestor
+    #     ancestor = None
+    # else:
+    #     ancestor = df.loc[Path(ancestor_id).stem]
 
-    return phase_data, ancestor
+    return phase_data, best_conf
