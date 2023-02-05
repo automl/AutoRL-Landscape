@@ -21,7 +21,7 @@ def find_peaks_model(
 ) -> None:
     """Count local minima and maxima, given a model and layer of it."""
     for model_layer_name in model.model_layer_names:
-        title = f"{model_layer_name.capitalize()} Model"
+        title = f"{model_layer_name.capitalize()} Surface"
         func: Callable[[NDArray[Any]], NDArray[Any]] = getattr(model, f"get_{model_layer_name}")
         grid = grid_space_nd(num_dims, grid_length, bounds=bounds)
         y_grid = func(grid).squeeze()
@@ -34,7 +34,7 @@ def find_peaks_model(
                 "scatter",
                 "maps",
                 model.build_df(grid[min_mask], y_grid[min_mask].reshape(-1, 1), "minima"),
-                {"color": "white", "marker": "v", "edgecolors": "black", "s": 100},
+                {"color": "white", "marker": "v", "edgecolors": "black", "s": 100, "label": "local minima"},
             )
         )
         model.add_viz_info(
@@ -43,7 +43,7 @@ def find_peaks_model(
                 "scatter",
                 "maps",
                 model.build_df(grid[max_mask], y_grid[max_mask].reshape(-1, 1), "maxima"),
-                {"color": "white", "marker": "^", "edgecolors": "black", "s": 100},
+                {"color": "white", "marker": "^", "edgecolors": "black", "s": 100, "label": "local maxima"},
             )
         )
 

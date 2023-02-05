@@ -2,20 +2,20 @@ from typing import Any, Iterable, TypeVar
 
 import argparse
 from datetime import datetime
-from functools import partial
 from itertools import zip_longest
 from pathlib import Path
 
 import hydra
+import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.artist import Artist
 from matplotlib.backend_bases import PickEvent
 from matplotlib.figure import Figure
+from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.ls_models.heteroskedastic_gp import HSGPModel
 from autorl_landscape.ls_models.ls_model import LSModel
-from autorl_landscape.ls_models.mock import MockLSModel
 from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
@@ -117,12 +117,14 @@ def main() -> None:
     # phases ana concavity ...
     parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
     parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_concavity.add_argument("--model", type=str, choices=MODELS, required=True)
     parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_concavity.set_defaults(func="concavity", model=None)
 
     # phases ana graphs ...
     parser_ana_graphs = ana_subparsers.add_parser("graphs", help="")
     parser_ana_graphs.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_graphs.add_argument("--model", type=str, choices=MODELS, required=True)
     parser_ana_graphs.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_graphs.set_defaults(func="graphs", model=None)
 
@@ -144,7 +146,10 @@ def main() -> None:
             file = Path(args.data)
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
-            for phase_str in phase_strs:
+
+            fig = plt.figure()
+            global_gs = fig.add_gridspec(1, 1 + len(phase_strs))
+            for phase_str, sub_gs in zip(phase_strs, [gs for gs in global_gs][1:]):
                 phase_data, best_conf = split_phases(df, phase_str)
                 match args.func:
                     case "viz_hsgp":
@@ -165,13 +170,12 @@ def main() -> None:
                     case _:
                         parser.print_help()
                         return
-                fig_file = Path(f"images/{args.func}/{args.func}_{file.stem}_{phase_str}") if args.savefig else None
-                model.visualize(grid_length=args.grid_length, viz_group="maps", save=fig_file)
-            # _add_legend(fig)
-            # plt.show()
+                fig_file_part = f"images/{args.func}/{args.func}_{file.stem}" if args.savefig else None
+                row_titles = model.visualize_nd(fig, sub_gs, args.grid_length, viz_group="maps", phase_str=phase_str)
+            plot_figure(fig, global_gs, fig_file_part, row_titles)
         case "viz_data":
             visualize_data(args.data)
-        case "maps" | "peaks" | "modalities":
+        case "maps" | "modalities" | "graphs":
             # lazily import ana-only deps:
             from autorl_landscape.analyze.modalities import check_modality
             from autorl_landscape.analyze.peaks import find_peaks_model
@@ -179,35 +183,37 @@ def main() -> None:
             file = Path(args.data)
             df = read_wandb_csv(file)
             phase_strs = sorted(df["meta.phase"].unique())
-            for phase_str in phase_strs:
+
+            fig = plt.figure()
+            global_gs = fig.add_gridspec(1, 1 + len(phase_strs))
+            for phase_str, sub_gs in zip(phase_strs, [gs for gs in global_gs][1:]):
                 phase_data, best_conf = split_phases(df, phase_str)
                 match args.model:
-                    case "hsgp":
-                        model = HSGPModel(phase_data, 10, np.float64, "ls_eval/returns", None, best_conf)
-                        model_folder = file.parent / f"{file.stem}_hsgp_{phase_str}"
-                        model.load(model_folder)
                     case "rbf":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                     case "triple-gp":
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                         model.fit()
-                    case "mock":
-                        model = MockLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                     case _:
                         model = LSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                 match args.func:
                     case "maps":
                         if not isinstance(model, RBFInterpolatorLSModel):
                             find_peaks_model(model, len(model.dim_info), args.grid_length, bounds=(0, 1))
+                        add_legend = True
                     case "modalities":
                         check_modality(model, args.grid_length)
+                        add_legend = True
+                    case "graphs":
+                        add_legend = False
                     case _:
                         parser.print_help()
                         return
-                fig_file = Path(f"images/{args.func}/{args.func}_{file.stem}_{phase_str}") if args.savefig else None
-                model.visualize(grid_length=args.grid_length, viz_group=args.func, save=fig_file)
-            # _add_legend(fig)
-            # plt.show()
+                fig_file_part = f"images/{args.func}/{args.func}_{file.stem}" if args.savefig else None
+                row_titles, height_ratios = model.visualize_nd(
+                    fig, sub_gs, args.grid_length, viz_group=args.func, phase_str=phase_str
+                )
+            plot_figure(fig, global_gs, fig_file_part, row_titles, height_ratios, add_legend)
         case "concavity":
             from autorl_landscape.analyze.concavity import find_biggest_nonconcave
 
@@ -216,22 +222,48 @@ def main() -> None:
             phase_strs = sorted(df["meta.phase"].unique())
             for phase_str in phase_strs:
                 phase_data, _ = split_phases(df, phase_str)
-                model_builder = partial(
-                    RBFInterpolatorLSModel,
-                    data=phase_data,
-                    dtype=np.float64,
-                    y_col="ls_eval/returns",
-                    y_bounds=None,
-                    ancestor=None,
-                )
+                match args.model:
+                    case "rbf":
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns")
+                    case "triple-gp":
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns")
+                        model.fit()
+                    case _:
+                        pass
                 print(f"{phase_str}:")
-                biggest_rejecting_ci = find_biggest_nonconcave(model_builder, args.grid_length)
-                print(f"Concavity can be rejected for CI's <= {biggest_rejecting_ci}")
+                smallest_rejecting_ci = find_biggest_nonconcave(model, args.grid_length)
+                print(f"Concavity can be rejected for squeezes stronger than k_{{max}} = {smallest_rejecting_ci:.2f}")
         case "dl":
             download_data(ENTITY, args.project_name)
         case _:
             parser.print_help()
             return
+
+
+def plot_figure(
+    fig: Figure,
+    global_gs: GridSpec,
+    fig_file_part: str | None,
+    row_titles: list[str],
+    height_ratios: list[float],
+    add_legend: bool = True,
+) -> None:
+    """TODO."""
+    # add titles:
+    title_gs = GridSpecFromSubplotSpec(1 + len(row_titles), 1, global_gs[0], height_ratios=height_ratios)
+    for i, row_title in enumerate(row_titles, start=1):
+        ax = fig.add_subplot(title_gs[i, 0])
+        ax.text(1.0, 0.5, row_title, ha="right", va="center", fontsize=16)
+        ax.axis("off")
+
+    if add_legend:
+        # get unique labels in whole figure:
+        foo = [a.get_legend_handles_labels() for a in fig.axes]
+        handles, labels = [sum(f, []) for f in _transpose(foo)]
+        by_label = dict(zip(labels, handles))
+        fig.legend(by_label.values(), by_label.keys(), loc="center right")
+
+    plt.show()
 
 
 def _prepare_hydra(args: argparse.Namespace) -> DictConfig:

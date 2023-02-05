@@ -12,7 +12,7 @@ from scipy.stats.qmc import Sobol
 
 from autorl_landscape.util.grid_space import grid_space_nd
 
-TICK_PRECISION = 5
+TICK_PRECISION = 4
 
 
 def construct_ls(conf: DictConfig) -> pd.DataFrame:

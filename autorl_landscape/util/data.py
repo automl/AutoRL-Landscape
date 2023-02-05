@@ -16,6 +16,8 @@ def read_wandb_csv(file: Path) -> pd.DataFrame:
         converters={
             "ls_eval/returns": ast.literal_eval,
             "ls_eval/ep_lengths": ast.literal_eval,
+            "final_eval_3/returns": ast.literal_eval,
+            "final_eval_3/ep_lengths": ast.literal_eval,
         },
     )
     return df

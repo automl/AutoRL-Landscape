@@ -36,13 +36,13 @@ def visualize_data_samples(file: str) -> None:
     """Visualize grid of samples, read from a file."""
     df = read_wandb_csv(file)
     # phase_data = df[df["meta.phase"] == "phase_0"]
-    fig = plt.figure(figsize=(16, 16))
+    fig = plt.figure(figsize=(8, 8))
     fig.tight_layout()
     ax = plt.axes()
     ax.scatter(df["ls.learning_rate"], df["ls.gamma"])
     ax.set_xscale("log")
-    ax.set_xlabel("learning rate")
-    ax.set_ylabel("gamma")
+    ax.set_xlabel("learning rate", fontweight="bold")
+    ax.set_ylabel("gamma", fontweight="bold")
     plt.show()
 
 

@@ -75,7 +75,7 @@
         "ana",
         "maps",
         "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/quick_slurm_sobol_2_v2_2023-01-13_16-36-15.csv",
         "--model",
         "rbf"
       ],
@@ -196,7 +196,23 @@
         "ana",
         "concavity",
         "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv"
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "--model=rbf"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases ana graphs",
+      "type": "python",
+      "request": "launch",
+      "program": "/data/conda/envs/ma10/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "ana",
+        "graphs",
+        "--data",
+        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/first_slurm_2022-11-15_19-35-27.csv",
+        "--model=rbf"
       ],
       "justMyCode": false
     }
