@@ -6,7 +6,7 @@ defaults: # bigger sub-configurations to swap around
   - _self_
 
 wandb:
-  project: test_grid_3
+  project: ff
   entity: kwie98
 
 seeds:
