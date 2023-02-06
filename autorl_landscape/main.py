@@ -27,7 +27,7 @@ from autorl_landscape.visualize import (
     visualize_sobol_samples,
 )
 
-ENTITY = "kwie98"
+# ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 51
 MODELS = ["hsgp", "rbf", "triple-gp", "mock"]
 VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
@@ -125,11 +125,11 @@ def main() -> None:
     parser_ana_graphs = ana_subparsers.add_parser("graphs", help="")
     parser_ana_graphs.add_argument("--data", help="csv file containing data of all runs", required=True)
     parser_ana_graphs.add_argument("--model", type=str, choices=MODELS, required=True)
-    parser_ana_graphs.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
     parser_ana_graphs.set_defaults(func="graphs", model=None)
 
     # phases dl ...
     parser_dl = subparsers.add_parser("dl")
+    parser_dl.add_argument("entity_name", type=str)
     parser_dl.add_argument("project_name", type=str)
     parser_dl.set_defaults(func="dl")
 
@@ -234,7 +234,7 @@ def main() -> None:
                 smallest_rejecting_ci = find_biggest_nonconcave(model, args.grid_length)
                 print(f"Concavity can be rejected for squeezes stronger than k_{{max}} = {smallest_rejecting_ci:.2f}")
         case "dl":
-            download_data(ENTITY, args.project_name)
+            download_data(args.entity_name, args.project_name)
         case _:
             parser.print_help()
             return

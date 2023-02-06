@@ -12,7 +12,6 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import BoundaryNorm, TwoSlopeNorm
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpecFromSubplotSpec
-from matplotlib.ticker import FuncFormatter
 from numpy.typing import NDArray
 from pandas import DataFrame, Series
 from sklearn.base import BaseEstimator, RegressorMixin
@@ -285,89 +284,6 @@ class LSModel(BaseEstimator):
         """
         assert x.shape[1] == len(self.dim_info)
         return DataFrame(np.concatenate([x, y], axis=1), columns=self.get_ls_dim_names() + [y_axis_label])
-
-    def _visualize_1d(self, grid_length: int, which: str) -> None:
-        raise NotImplementedError
-
-    def _visualize_2d(self, grid_length: int) -> None:
-        fig = plt.figure(figsize=(16, 10))
-        ax = fig.gca()
-        ax.set_zlim3d(0, 1)
-
-        grid_x0, grid_x1 = np.meshgrid(np.linspace(0, 1, num=grid_length), np.linspace(0, 1, num=grid_length))
-        grid_x0 = grid_x0.flatten()
-        grid_x1 = grid_x1.flatten()
-        grid = np.stack((grid_x0, grid_x1), axis=1)  # (-1, num_ls_dims = 2)
-
-        # rescale the ls dims (`grid` is unchanged by this):
-        # for dim_i, grid_xi in zip(self.get_ls_dim_names(), (grid_x0, grid_x1)):
-        # grid_xi = self.dim_info[dim_i].unit_to_ls(grid_xi).reshape(grid_length, grid_length)
-        # grid_xi = np.reshape(self.dim_info[dim_i].unit_to_ls(grid_xi), (grid_length, grid_length))
-        grid_x0 = grid_x0.reshape((grid_length, grid_length))
-        grid_x1 = grid_x1.reshape((grid_length, grid_length))
-
-        # if viz_model:
-        for y_, opacity, label in [
-            (self.get_upper(grid), 0.5, "modelled upper CI bound"),
-            (self.get_middle(grid), 1.0, "modelled mean"),
-            (self.get_lower(grid), 0.5, "modelled lower CI bound"),
-        ]:
-            cmap = "viridis" if opacity == 1.0 else None
-            color = (0.5, 0.5, 0.5, opacity) if opacity < 1.0 else None
-            # color = "red"
-            surface = ax.plot_surface(
-                grid_x0,
-                grid_x1,
-                y_.reshape(grid_length, grid_length),
-                cmap=cmap,
-                color=color,
-                edgecolor="none",
-                shade=True,
-                label=label,
-            )
-            _fix_surface_for_legend(surface)
-
-        viz_infos = self.get_viz_infos()
-        for viz in viz_infos:
-            match viz.viz_type:
-                case "scatter":
-                    ax.scatter(
-                        viz.x_samples[:, 0],
-                        viz.x_samples[:, 1],
-                        viz.y_samples[:, 0],
-                        label=viz.label,
-                        **viz.kwargs,
-                    )
-                case "trisurf":
-                    surface = ax.plot_trisurf(
-                        viz.x_samples[:, 0],
-                        viz.x_samples[:, 1],
-                        viz.y_samples[:, 0],
-                        label=viz.label,
-                        **viz.kwargs,
-                        # edgecolor="none",
-                        # shade=False,
-                    )
-                    _fix_surface_for_legend(surface)
-                # case "surface":
-                #     surface = ax.plot_surface(
-                #         viz.x_samples[:, 0],
-                #         viz.x_samples[:, 1],
-                #         viz.y_samples[:, 0],
-                #         label=viz.label,
-                #         **viz.kwargs,
-                #     )
-                #     _fix_surface_for_legend(surface)
-                case _:
-                    raise NotImplementedError
-        ax.set_xlabel(self.dim_info[0].name, fontsize=12)
-        ax.set_ylabel(self.dim_info[1].name, fontsize=12)
-        ax.set_zlabel(self.y_info.name, fontsize=12)
-
-        ax.xaxis.set_major_formatter(FuncFormatter(self.dim_info[0].tick_formatter))
-        ax.yaxis.set_major_formatter(FuncFormatter(self.dim_info[1].tick_formatter))
-        ax.zaxis.set_major_formatter(FuncFormatter(self.y_info.tick_formatter))
-        return
 
     def visualize_nd(
         self, fig: Figure, sub_gs: Any, grid_length: int, viz_group: str, phase_str: str
