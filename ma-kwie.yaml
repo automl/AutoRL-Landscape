@@ -7,7 +7,6 @@ dependencies:
   - pip>=22.3
   - pytorch=1.12
   - cudatoolkit=11.6
-  # - configspace=0.6
   - hydra-core=1.2
   - pytest=7.2
   - tensorboard=2.10
@@ -17,9 +16,5 @@ dependencies:
   - pandas-stubs=1.5
   - scikit-learn=1.2
   - gym=0.21
-  # - gcc # for mclovin
-  # - glew # for mclovin
-  # - xorg-libx11 # for mclovin
-  # - patchelf # for mclovin
   - pip:
     - -r ma-kwie_requirements.txt

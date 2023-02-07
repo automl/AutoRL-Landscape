@@ -1,8 +1,10 @@
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator
 
-from autorl_landscape.ls_models.ls_model import CMAP_DIVERGING, LSModel, Visualization
+from autorl_landscape.ls_models.ls_model import LSModel
+from autorl_landscape.types.visualization import Visualization
 from autorl_landscape.util.grid_space import grid_space_nd
+from autorl_landscape.visualize import CMAP_DIVERGING
 
 P_VALUE_CUTOFF = 0.05
 
