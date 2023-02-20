@@ -152,9 +152,11 @@ def _train_agent(
     eval_env = make_env(conf.env.name, seed)
 
     # setup wandb
+    assert type(conf.wandb.tag) == str  # should hold?
     project_root = Path(__file__).parent.parent
     run = wandb.init(
         project=conf.wandb.project,
+        tags=[conf.wandb.tag],
         config={
             "ls": ls_conf_readable,
             "conf": OmegaConf.to_object(conf),

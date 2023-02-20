@@ -8,32 +8,26 @@ import wandb
 from wandb.apis.public import Run
 
 
-def download_data(entity_name: str, project_name: str) -> None:
+def download_data(entity_name: str, project_name: str, experiment_tag: str) -> None:
     """Extract data from the local wandb server into a file."""
-    # api = wandb.Api({"base_url": "localhost"})  # TODO local installation not 100% working:
-    # https://docs.wandb.ai/guides/self-hosted/setup/on-premise-baremetal
     api = wandb.Api()
-    projects = api.projects()
-    entity_name = projects[0].entity
 
     runs: Iterable[Run] = api.runs(path=f"{entity_name}/{project_name}")
-    # names, ids, configs, summaries = [], [], [], []
     ids, vals = [], []
     for run in runs:
-        # ids.append(run.id)
-        # names.append(run.name)
-        # configs.append(run.config)
-        # summaries.append(run.summary)
-        ids.append(run.id)
-        vals.append({"name": run.name, **run.config, **run.summary})
+        if experiment_tag in run.tags:
+            ids.append(run.id)
+            vals.append({"name": run.name, **run.config, **run.summary})
+
+    if len(ids) == 0:
+        print("could not find any runs with the given experiment tag!")
+        return
 
     print("download done")
     vals = [_flatten_dict(v) for v in vals]
-    # configs = [_flatten_dict(c) for c in configs]
-    # summaries = [_flatten_dict(s) for s in summaries]
     df = pd.DataFrame(vals, index=ids)
     date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    path = Path(f"data/{entity_name}/{project_name}_{date_str}.csv")
+    path = Path(f"data/{entity_name}_{project_name}/{experiment_tag}_{date_str}.csv")
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as file:
         df.to_csv(file)

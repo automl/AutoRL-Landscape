@@ -98,6 +98,7 @@ def main() -> None:
     parser_dl = subparsers.add_parser("dl")
     parser_dl.add_argument("entity_name", type=str)
     parser_dl.add_argument("project_name", type=str)
+    parser_dl.add_argument("experiment_tag", type=str)
     parser_dl.set_defaults(func="dl")
 
     # handle args:
@@ -173,7 +174,7 @@ def main() -> None:
                 smallest_rejecting_ci = find_biggest_nonconcave(model, args.grid_length)
                 print(f"Concavity can be rejected for squeezes stronger than k_{{max}} = {smallest_rejecting_ci:.2f}")
         case "dl":
-            download_data(args.entity_name, args.project_name)
+            download_data(args.entity_name, args.project_name, args.experiment_tag)
         case _:
             parser.print_help()
             return

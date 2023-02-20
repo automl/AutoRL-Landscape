@@ -9,7 +9,9 @@
       "console": "integratedTerminal",
       "args": [
         "dl",
-        "test_exploration"
+        "kwie98",
+        "paper",
+        "foo"
       ],
       "justMyCode": false
     },
