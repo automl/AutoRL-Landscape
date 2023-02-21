@@ -8,7 +8,7 @@ defaults: # bigger sub-configurations to swap around
 wandb:
   project: ???
   entity: ???
-  tag: ???
+  experiment_tag: ???
 
 seeds:
   agent: 44 # seed for first agent of a configuration

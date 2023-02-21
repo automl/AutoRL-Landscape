@@ -172,7 +172,7 @@
       "justMyCode": false
     },
     {
-      "name": "phases run debug",
+      "name": "phases run",
       "type": "python",
       "request": "launch",
       "program": "/data/conda/envs/ma10/bin/phases",
@@ -180,11 +180,12 @@
       "args": [
         "run",
         "combo=dqn_cartpole",
-        "ls=debug",
+        "ls=sobol_2",
         "slurm=debug",
         "phases=quick",
-        "num_confs=2",
-        "num_seeds=1"
+        "num_confs=1",
+        "num_seeds=1",
+        "wandb.experiment_tag=debug"
       ],
       "justMyCode": false
     },

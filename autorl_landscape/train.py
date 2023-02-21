@@ -9,7 +9,8 @@ from numpy.typing import NDArray
 from omegaconf import DictConfig, OmegaConf
 from stable_baselines3.common.monitor import Monitor
 
-from autorl_landscape.custom_agents.custom_dqn import CustomDQN
+from autorl_landscape.custom_agents.dqn import CustomDQN
+from autorl_landscape.custom_agents.sac import CustomSAC
 from autorl_landscape.util.callback import LandscapeEvalCallback
 from autorl_landscape.util.compare import choose_best_conf, construct_2d
 from autorl_landscape.util.ls_sampler import construct_ls
@@ -58,7 +59,7 @@ def run_phase(
     executor.update_parameters(**conf.slurm.update_parameters)
 
     for conf_idx, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
-        # NOTE set hyperparameters
+        # set hyperparameters:
         ls_conf = {
             # [256, 256] translates to three layers:
             # Linear(i, 256), relu
@@ -152,11 +153,11 @@ def _train_agent(
     eval_env = make_env(conf.env.name, seed)
 
     # setup wandb
-    assert type(conf.wandb.tag) == str  # should hold?
+    assert type(conf.wandb.experiment_tag) == str  # should hold?
     project_root = Path(__file__).parent.parent
     run = wandb.init(
         project=conf.wandb.project,
-        tags=[conf.wandb.tag],
+        tags=[conf.wandb.experiment_tag],
         config={
             "ls": ls_conf_readable,
             "conf": OmegaConf.to_object(conf),
@@ -185,16 +186,16 @@ def _train_agent(
 
     # AgentClass: type
     if conf.agent.name == "DQN":
-        AgentClass = CustomDQN
-    # elif conf.agent.name == "SAC":
-    #     AgentClass = SAC
+        Agent = CustomDQN
+    elif conf.agent.name == "SAC":
+        Agent = CustomSAC
     else:
         raise Exception("unknown agent")
     # Agent Instantiation:
     if ancestor is None:
-        agent = AgentClass(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore
+        agent = Agent(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore
     else:
-        agent = AgentClass.custom_load(save_path=ancestor, seed=seed)
+        agent = Agent.custom_load(save_path=ancestor, seed=seed)
         # NOTE set hyperparameters:
         agent.learning_rate = ls_conf["learning_rate"]
         agent.gamma = ls_conf["gamma"]

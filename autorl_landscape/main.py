@@ -17,7 +17,7 @@ from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
 from autorl_landscape.util.data import read_wandb_csv, split_phases
-from autorl_landscape.util.download import download_data
+from autorl_landscape.util.download import download_data, get_all_tags
 from autorl_landscape.visualize import (
     FIGSIZES,
     LEGEND_FSIZE,
@@ -228,6 +228,11 @@ def start_phases(conf: DictConfig) -> None:
     Args:
         conf: Hydra configuration
     """
+    # check whether given tag is unused (to not mess up other experiments):
+    tags = get_all_tags(conf.wandb.entity, conf.wandb.project)
+    assert type(conf.wandb.experiment_tag) == str
+    assert conf.wandb.experiment_tag not in tags, f"Use a unique experiment tag for new experiments! Used: {tags}"
+
     # remember starting time of this run for saving all phase data:
     date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 

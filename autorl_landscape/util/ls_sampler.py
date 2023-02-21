@@ -80,6 +80,7 @@ def _unit_samples_to_ls(conf: DictConfig, samples: NDArray[Any], dims: list[tupl
             configs[:, i] = unit_to_log(samples[:, s], dim_args["base"], dim_args["lower"], dim_args["upper"])
             s += 1
         elif dim_args["type"] == "Constant":
+            assert hasattr(conf.agent.zoo_optimal_ls, dim_name), "You need to set default values for constant hps!"
             value = conf.agent.zoo_optimal_ls[dim_name]
             configs[:, i] = value
         else:

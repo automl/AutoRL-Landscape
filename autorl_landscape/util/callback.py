@@ -88,7 +88,11 @@ class LandscapeEvalCallback(EvalCallback):
         self.num_timesteps = self.model.num_timesteps
         self._evaluate(False, True, False, False)
 
+    # def _on_rollout_end(self) -> None:
+    #     print(f"_on_rollout_end() at {self.num_timesteps}")
+
     def _on_step(self) -> bool:
+        # print(f"_on_step() at {self.num_timesteps}")
         ls_eval = not self.done_ls_eval and self.n_calls >= self.t_ls
         freq_eval = self.eval_freq > 0 and self.n_calls % self.eval_freq == 0  # or (self.n_calls == 1)
         # if self.n_calls in self.t_final_evals:

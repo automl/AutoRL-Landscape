@@ -42,3 +42,14 @@ def _flatten_dict(d: dict[Any, Any], parent_key: str = "", sep: str = ".") -> di
         else:
             items.append((new_key, v))
     return dict(items)
+
+
+def get_all_tags(entity_name: str, project_name: str) -> Iterable[str]:
+    """Query the wandb api for already used tags in the project."""
+    api = wandb.Api()
+
+    runs: Iterable[Run] = api.runs(path=f"{entity_name}/{project_name}")
+    tags: set[str] = set()
+    for run in runs:
+        tags.update(run.tags)
+    return tags
