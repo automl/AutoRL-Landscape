@@ -24,9 +24,6 @@ viz:
   max_return: 5000
   max_ep_length: 5000
   hist_bins: 100
-# phases:
-#   - 30000
-#   - 60000
 # from sac.yaml:
 # name: SAC
 # hps:

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from pathlib import Path
 
@@ -28,37 +28,26 @@ def make_env(env_name: str, seed: int) -> gym.Env:
     # return wrapped
 
 
-def run_phase(
-    conf: DictConfig,
-    t_ls: int,
-    t_final: int,
-    date_str: str,
-    phase_str: str,
-    ancestor: Optional[Path] = None,
-) -> None:
+def run_phase(conf: DictConfig, phase_index: int, timestamp: str, ancestor: Optional[Path] = None) -> None:
     """Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
 
     If initial_agent is given, start with its progress instead of training from 0. After this, train
     all agents until t_final env steps and evaluate here to choose the best configuration.
 
     Args:
-        conf (DictConfig): Configuration for the experiment
-        t_ls (int): Number of steps from this phase's start until this phase's landscape evaluation
-        t_final (int): Number of steps from this phase's start until this phase's end
-        date_str (str): Timestamp that is equal for all phases of this experiment, used for saving
-        phase_str (str): e.g. phase_{i}, used for saving
-
-    Returns:
-        None
+        conf: Configuration for the experiment
+        phase_index: Number naming the current phase. For the first phase, this is 1
+        timestamp: Timestamp that is equal for all phases of this experiment, used for saving
+        ancestor: If present, leads to the agent which `seeds` this phase.
     """
-    # path for saving agents of the current phase
-    phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
+    # base directory for saving agents of the current phase
+    phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_{phase_index}"
 
     executor = submitit.AutoExecutor(folder="submitit", cluster=conf.slurm.cluster)
     tasks = []
     executor.update_parameters(**conf.slurm.update_parameters)
 
-    for conf_idx, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
+    for conf_index, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
         # set hyperparameters:
         ls_conf = {
             # [256, 256] translates to three layers:
@@ -80,22 +69,10 @@ def run_phase(
         del c
 
         for seed in range(conf.seeds.agent, conf.seeds.agent + conf.num_seeds):
-            task = (
-                ancestor,
-                conf,
-                ls_conf,
-                ls_conf_readable,
-                seed,
-                date_str,
-                phase_str,
-                t_ls,
-                t_final,
-                conf_idx,
-                phase_path,
-            )
+            task = (conf, phase_index, timestamp, ancestor, ls_conf, ls_conf_readable, seed, conf_index, phase_path)
             tasks.append(task)
 
-    results = schedule(executor, _train_agent, tasks, num_parallel=conf.slurm.num_parallel, polling_rate=10)
+    results = schedule(executor, train_agent, tasks, num_parallel=conf.slurm.num_parallel, polling_rate=10)
 
     # conf_indices, run_ids, final_scores = zip(*results)
     # run_ids = np.array(run_ids)
@@ -104,7 +81,7 @@ def run_phase(
 
     best = choose_best_conf(run_ids, final_returns, save=phase_path)
 
-    print(f"-- {phase_str.upper()} REPORT --")
+    print(f"-- PHASE {phase_index} REPORT --")
     print(f"{run_ids=}")
     print(f"{final_returns=}")
     print(f"Best run: {best}\n")
@@ -112,47 +89,38 @@ def run_phase(
     return
 
 
-def _train_agent(
-    ancestor: Optional[Path],
+def train_agent(
     conf: DictConfig,
-    ls_conf: Dict[str, Any],
-    ls_conf_readable: Dict[str, Any],
+    phase_index: int,
+    timestamp: str,
+    ancestor: Optional[Path],
+    ls_conf: dict[str, Any],
+    ls_conf_readable: dict[str, Any],
     seed: int,
-    date_str: str,
-    phase_str: str,
-    t_ls: int,
-    t_final: int,
     conf_index: int,
     phase_path: str,
 ) -> Tuple[int, str, NDArray[Any]]:
     """Train an agent, evaluating ls_eval and final_eval.
 
-    :param ancestor: Path to a saved trained agent from which learning shall be commenced
-    :param conf: Base configuration for agent, env, etc.
-    :param ls_conf: Setting of the hyperparameters from the landscape
-    :param ls_conf_readable: ls_conf but for logging
-    :param seed: seed for the Agent, for verifying performance of a configuration over multiple
-    random initializations.
-    :param date_str: Timestamp to distinguish this whole run (not just the current phase!), for
-    saving
-    :param phase_str: e.g. "phase_0", for saving
-    :param t_ls: For `LandscapeEvalCallback`
-    :param t_final: For `LandscapeEvalCallback`
-    :param conf_idx: For `LandscapeEvalCallback`
-    :param phase_path: e.g. "phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
+    Args:
+        conf: Base configuration for agent, env, etc.
+        phase_index: Number naming the current phase. For the first phase, this is 1
+        timestamp: Timestamp to distinguish this whole run (not just the current phase!), for saving
+        ancestor: Path to a saved trained agent from which learning shall be commenced
+        ls_conf: Setting of the hyperparameters from the landscape
+        ls_conf_readable: ls_conf but for logging
+        seed: seed for the Agent, for verifying performance of a configuration over multiple random initializations.
+        conf_index: For `LandscapeEvalCallback`
+        phase_path: e.g. "phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
 
-    :return: wandb id of the run and all collected final performance values of the run. I.e. shape is
-    (conf.combo.eval.final_eval_episodes * conf.combo.final_eval_times,)
+    Returns:
+        wandb id of the run and all collected final performance values of the run. I.e. shape is
+            (conf.combo.eval.final_eval_episodes * conf.combo.final_eval_times,)
     """
-    # run_ids = np.full((len(conf.seeds),), "", dtype=np.dtype("<U8"))
-    # final_scores = np.zeros((len(conf.seeds), conf.combo.final_eval_episodes * conf.combo.final_eval_times))
-    # for one configuration, train multiple agents
-
-    # Environment Creation
     env = make_env(conf.env.name, seed)
     eval_env = make_env(conf.env.name, seed)
 
-    # setup wandb
+    # Setup wandb:
     assert type(conf.wandb.experiment_tag) == str  # should hold?
     project_root = Path(__file__).parent.parent
     run = wandb.init(
@@ -162,8 +130,8 @@ def _train_agent(
             "ls": ls_conf_readable,
             "conf": OmegaConf.to_object(conf),
             "meta": {
-                "timestamp": date_str,
-                "phase": phase_str,
+                "timestamp": timestamp,
+                "phase": phase_index,
                 "seed": seed,
                 "ancestor": str(ancestor),
                 "conf_index": conf_index,
@@ -206,15 +174,11 @@ def _train_agent(
         agent.exploration_schedule = lambda _: ls_conf["exploration_final_eps"]
 
     landscape_eval_callback = LandscapeEvalCallback(
-        conf=conf,
-        eval_env=eval_env,
-        t_ls=t_ls,
-        t_final=t_final,
-        ls_model_save_path=f"{phase_path}/agents/{run.id}",
-        run=run,
-        agent_seed=seed,
+        conf, phase_index, eval_env, f"{phase_path}/agents/{run.id}", run, seed
     )
-    agent.learn(total_timesteps=t_final, callback=landscape_eval_callback, reset_num_timesteps=False)
+    # NOTE total_timesteps setting is too high here for all phases after the first. However, we simply stop learning
+    # runs after all needed data has been colleted, through the callback's _on_step() method.
+    agent.learn(total_timesteps=conf.phases[-1], callback=landscape_eval_callback, reset_num_timesteps=False)
 
     run.finish()
     return conf_index, run.id, landscape_eval_callback.all_final_returns.reshape(-1)

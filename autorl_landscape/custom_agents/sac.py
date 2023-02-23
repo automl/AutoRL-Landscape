@@ -4,14 +4,7 @@ from typing import Any
 
 from pathlib import Path
 
-from stable_baselines3.common.buffers import ReplayBuffer
-from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.noise import ActionNoise
-from stable_baselines3.common.type_aliases import RolloutReturn, TrainFreq
-from stable_baselines3.common.vec_env.base_vec_env import VecEnv
 from stable_baselines3.sac.sac import SAC
-
-from autorl_landscape.custom_agents.off_policy_algorithm import custom_collect_rollouts
 
 
 class CustomSAC(SAC):
@@ -20,20 +13,20 @@ class CustomSAC(SAC):
     def __init__(self, kwargs: dict[str, Any]):
         super().__init__(**kwargs)
 
-    def collect_rollouts(
-        self,
-        env: VecEnv,
-        callback: BaseCallback,
-        train_freq: TrainFreq,
-        replay_buffer: ReplayBuffer,
-        action_noise: ActionNoise | None = None,
-        learning_starts: int = 0,
-        log_interval: int | None = None,
-    ) -> RolloutReturn:
-        """Same as original, except for setting num_collected_steps."""
-        return custom_collect_rollouts(
-            self, env, callback, train_freq, replay_buffer, action_noise, learning_starts, log_interval
-        )
+    # def collect_rollouts(
+    #     self,
+    #     env: VecEnv,
+    #     callback: BaseCallback,
+    #     train_freq: TrainFreq,
+    #     replay_buffer: ReplayBuffer,
+    #     action_noise: ActionNoise | None = None,
+    #     learning_starts: int = 0,
+    #     log_interval: int | None = None,
+    # ) -> RolloutReturn:
+    #     """Same as original, except for setting num_collected_steps."""
+    #     return custom_collect_rollouts(
+    #         self, env, callback, train_freq, replay_buffer, action_noise, learning_starts, log_interval
+    #     )
 
     @classmethod
     def custom_load(cls, save_path: Path, seed: int) -> CustomSAC:

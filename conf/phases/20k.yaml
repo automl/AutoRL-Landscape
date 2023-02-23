@@ -1,8 +1,8 @@
 # @package _global_
 
 # Shortened training with just two phases: 
-total_timesteps: 20000
 eval:
   freq_eval_interval: 1000
 phases:
   - 10000
+  - 20000

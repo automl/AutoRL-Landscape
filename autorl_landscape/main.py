@@ -18,13 +18,7 @@ from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.train import run_phase
 from autorl_landscape.util.data import read_wandb_csv, split_phases
 from autorl_landscape.util.download import download_data, get_all_tags
-from autorl_landscape.visualize import (
-    FIGSIZES,
-    LEGEND_FSIZE,
-    TITLE_FSIZE,
-    visualize_data_samples,
-    visualize_nd,
-)
+from autorl_landscape.visualize import FIGSIZES, LEGEND_FSIZE, TITLE_FSIZE, visualize_data_samples, visualize_nd
 
 # ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 251
@@ -34,7 +28,6 @@ VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
 T = TypeVar("T")
 
 
-# @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main() -> None:
     """Choose to either start the phases or visualize the landscape samples."""
     # Parse non-hydra commandline arguments:
@@ -231,77 +224,31 @@ def start_phases(conf: DictConfig) -> None:
     # check whether given tag is unused (to not mess up other experiments):
     tags = get_all_tags(conf.wandb.entity, conf.wandb.project)
     assert type(conf.wandb.experiment_tag) == str
-    assert conf.wandb.experiment_tag not in tags, f"Use a unique experiment tag for new experiments! Used: {tags}"
+    if conf.wandb.experiment_tag != "debug":
+        assert conf.wandb.experiment_tag not in tags, f"Use a unique experiment tag for new experiments! Used: {tags}"
 
     # remember starting time of this run for saving all phase data:
-    date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     # TODO still not quite sure what this does but error message seems to be gone
     # wandb.tensorboard.patch(root_logdir="...")
 
-    if conf.phases is not None:
-        phases = conf.phases + [conf.total_timesteps]
-        if not all(x < y for x, y in zip(phases, phases[1:])):
-            raise Exception(f"Phases need to be strictly increasing. Got: {phases}")
-        if conf.phases[-1] >= int(conf.total_timesteps * conf.eval.final_eval_start):
+    if len(conf.phases) > 1:
+        if conf.phases[-2] >= int(conf.phases[-1] * conf.eval.final_eval_start):
             raise Exception(
-                "Last phase(s) too long! Not enough timesteps for final evaluation.\n"
-                + f"Last phase start: {conf.phases[-1]}.\n"
-                + f"final_eval start: {conf.eval.final_eval_start}"
+                "Last phase(s) too short! Not enough timesteps for all final evaluations.\n"
+                f"Last phase start: {conf.phases[-2]}.\n"
+                f"final_eval start: {conf.eval.final_eval_start}"
             )
 
-        last_t_phase = 0
-        original_total_timesteps = conf.total_timesteps
-        ancestor = None
-        for i, t_phase in enumerate(phases):
-            phase_str = f"phase_{i}"
-            run_phase(
-                conf=conf,
-                t_ls=t_phase - last_t_phase,
-                t_final=original_total_timesteps - last_t_phase,
-                date_str=date_str,
-                phase_str=phase_str,
-                ancestor=ancestor,
-            )
-            ancestor = (
-                Path(f"phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}/best_agent")
-                .resolve()
-                .relative_to(Path.cwd())
-            )
-            last_t_phase = t_phase
-    else:
-        # a rudimentary way to just run the agent without any phase stuff
-        run_phase(
-            conf=conf,
-            t_ls=conf.total_timesteps,
-            t_final=conf.total_timesteps,
-            date_str=date_str,
-            phase_str="phase_0",
-            ancestor=None,
+    if not all(x < y for x, y in zip(conf.phases, conf.phases[1:])):
+        raise Exception(f"Phases need to be strictly increasing. Got: {conf.phases}")
+
+    ancestor = None
+    for phase_index, _ in enumerate(conf.phases, start=1):
+        run_phase(conf, phase_index, timestamp, ancestor)
+        ancestor = (
+            Path(f"phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_{phase_index}/best_agent")
+            .resolve()
+            .relative_to(Path.cwd())
         )
-
-
-# def _add_legend(fig: Figure, hide_at_start: bool = True) -> None:
-#     legend = fig.legend(handles=fig.axes[0].collections)
-#     fig_artss = _transpose([ax.collections for ax in fig.axes])
-#     leg_to_fig: dict[Artist, list[Any]] = {}
-#     for leg_text, fig_arts in zip(legend.get_texts(), fig_artss):
-#         if hide_at_start:
-#             for fig_art in fig_arts:
-#                 if fig_art is not None:
-#                     fig_art.set_visible(False)
-#             leg_text.set_alpha(0.2)
-#         leg_text.set_picker(True)
-#         leg_to_fig[leg_text] = fig_arts
-
-#     def on_pick(event: PickEvent):
-#         leg_text = event.artist
-#         fig_artists = leg_to_fig[leg_text]
-#         for fig_artist in fig_artists:
-#             if fig_artist is not None:
-#                 visible = not fig_artist.get_visible()
-#                 fig_artist.set_visible(visible)
-#         leg_text.set_alpha(1.0 if visible else 0.2)
-#         fig.canvas.draw()
-
-#     fig.canvas.mpl_connect("pick_event", on_pick)

@@ -1,13 +1,13 @@
 # @package _global_
 
 # For quickly checking whether stuff works
-total_timesteps: 1000
 phases:
   - 500
+  - 1000
 agent:
   hps:
     # WARNING these overwrite values from the combo configuration!
     learning_starts: 100 # start training quite early
-    train_freq: 50 # update policy much more often
+    train_freq: 64 # update policy much more often
 eval:
   freq_eval_interval: 50

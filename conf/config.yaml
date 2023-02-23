@@ -6,8 +6,8 @@ defaults: # bigger sub-configurations to swap around
   - _self_
 
 wandb:
-  project: ???
-  entity: ???
+  project: paper
+  entity: kwie98
   experiment_tag: ???
 
 seeds:
