@@ -7,9 +7,9 @@ from numpy.typing import NDArray
 from pandas import DataFrame, Series
 from sklearn.base import BaseEstimator
 
-from autorl_landscape.types.dim_info import DimInfo
-from autorl_landscape.types.visualization import Visualization
-from autorl_landscape.util.compare import iqm
+from autorl_landscape.analyze.visualization import Visualization
+from autorl_landscape.run.compare import iqm
+from autorl_landscape.util.ls_sampler import DimInfo
 
 
 class LSModel(BaseEstimator):

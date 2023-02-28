@@ -8,20 +8,16 @@ from numpy.typing import NDArray
 from scipy.stats import trim_mean
 
 
-def construct_2d(indices: np.ndarray, *arrays: np.ndarray) -> Tuple[np.ndarray, ...]:
+def construct_2d(indices: NDArray[Any], *arrays: NDArray[Any]) -> Tuple[NDArray[Any], ...]:
     """Take some indices and uses them to pack the values into their respective rows.
 
-    indices : np.ndarray
-        Row for the return
-    arrays : np.ndarray
-        One or multiple numpy arrays to `reshape`
+    Args:
+        indices: Row for the return
+        arrays: One or multiple numpy arrays to `reshape`
 
-    Returns
-    -------
-    np.ndarray
-        The reshaped numpy arrays
+    Return: The reshaped numpy arrays
     """
-    rets: List[np.ndarray] = []
+    rets: List[NDArray[Any]] = []
     bins = np.bincount(indices)
     num_rows = np.max(indices) + 1
     assert np.all(bins == bins[0]), "Each index must occur the same number of times!"
@@ -42,7 +38,7 @@ def iqm(x: NDArray[Any], axis: int | None = None) -> NDArray[Any]:
     return trim_mean(x, proportiontocut=0.25, axis=axis)
 
 
-def choose_best_conf(run_ids: NDArray[Any], final_returns: NDArray[Any], save: Optional[str]) -> str:
+def choose_best_policy(run_ids: NDArray[Any], final_returns: NDArray[Any], save: Optional[str]) -> str:
     """Choose the best (ls) conf (row) as that which produced the best performance results on average.
 
     Then choose best run from that configuration via maximum.

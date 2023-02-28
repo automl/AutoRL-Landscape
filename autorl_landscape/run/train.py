@@ -2,73 +2,14 @@ from typing import Any, Optional, Tuple
 
 from pathlib import Path
 
-import submitit
 import wandb
 from numpy.typing import NDArray
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.custom_agents.dqn import CustomDQN
 from autorl_landscape.custom_agents.sac import CustomSAC
+from autorl_landscape.run.callback import LandscapeEvalCallback
 from autorl_landscape.run.rl_context import make_env
-from autorl_landscape.util.callback import LandscapeEvalCallback
-from autorl_landscape.util.compare import choose_best_conf, construct_2d
-from autorl_landscape.util.ls_sampler import construct_ls
-from autorl_landscape.util.schedule import schedule
-
-# def make_env(env_name: str, seed: int) -> gym.Env:
-#     """Quick helper to create a gym env and seed it."""
-#     env = gym.make(env_name)
-#     env = Monitor(env)
-#     env.seed(seed)
-#     return env
-
-
-def run_phase(conf: DictConfig, phase_index: int, timestamp: str, ancestor: Optional[Path] = None) -> None:
-    """Train a number of sampled configurations, evaluating and saving all agents at t_ls env steps.
-
-    If initial_agent is given, start with its progress instead of training from 0. After this, train
-    all agents until t_final env steps and evaluate here to choose the best configuration.
-
-    Args:
-        conf: Configuration for the experiment
-        phase_index: Number naming the current phase. For the first phase, this is 1
-        timestamp: Timestamp that is equal for all phases of this experiment, used for saving
-        ancestor: If present, leads to the agent which `seeds` this phase.
-    """
-    # base directory for saving agents of the current phase
-    phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_{phase_index}"
-
-    executor = submitit.AutoExecutor(folder="submitit", cluster=conf.slurm.cluster)
-    tasks = []
-    executor.update_parameters(**conf.slurm.update_parameters)
-
-    for conf_index, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
-        # set hyperparameters:
-        ls_conf = {
-            "learning_rate": c["learning_rate"],
-            "gamma": 1 - c["neg_gamma"],
-            # "exploration_final_eps": c["exploration_final_eps"],
-        }
-
-        for seed in range(conf.seeds.agent, conf.seeds.agent + conf.num_seeds):
-            task = (conf, phase_index, timestamp, ancestor, ls_conf, seed, conf_index, phase_path)
-            tasks.append(task)
-
-    results = schedule(executor, train_agent, tasks, num_parallel=conf.slurm.num_parallel, polling_rate=10)
-
-    # conf_indices, run_ids, final_scores = zip(*results)
-    # run_ids = np.array(run_ids)
-    # final_scores = np.array(final_scores)
-    run_ids, final_returns = construct_2d(*zip(*results))
-
-    best = choose_best_conf(run_ids, final_returns, save=phase_path)
-
-    print(f"-- PHASE {phase_index} REPORT --")
-    print(f"{run_ids=}")
-    print(f"{final_returns=}")
-    print(f"Best run: {best}\n")
-
-    return
 
 
 def train_agent(
@@ -133,13 +74,14 @@ def train_agent(
         "seed": seed,
     }
 
-    # AgentClass: type
-    if conf.agent.name == "DQN":
-        Agent = CustomDQN
-    elif conf.agent.name == "SAC":
-        Agent = CustomSAC
-    else:
-        raise Exception("unknown agent")
+    match conf.agent.name:
+        case "DQN":
+            Agent = CustomDQN
+        case "SAC":
+            Agent = CustomSAC
+        case _:
+            raise Exception("unknown agent")
+
     # Agent Instantiation:
     if ancestor is None:
         agent = Agent(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore

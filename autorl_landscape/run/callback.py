@@ -1,7 +1,5 @@
 from typing import Any, Union
 
-from enum import Enum, auto
-
 import gym
 import numpy as np
 import wandb
@@ -13,16 +11,7 @@ from stable_baselines3.common.vec_env.base_vec_env import VecEnv
 from wandb.sdk.lib.disabled import RunDisabled
 from wandb.sdk.wandb_run import Run
 
-# from autorl_landscape.custom_agents.dqn import CustomDQN
-# from autorl_landscape.custom_agents.sac import CustomSAC
-
-
-class Evaluation(Enum):
-    """Differentiates different reasons for doing an evaluation of a policy."""
-
-    FREQ_EVAL = auto()
-    LS_EVAL = auto()
-    FINAL_EVAL = auto()
+from autorl_landscape.run.eval_stage import EvalStage, FinalEval, FreqEval, LSEval
 
 
 class LandscapeEvalCallback(BaseCallback):
@@ -60,7 +49,7 @@ class LandscapeEvalCallback(BaseCallback):
         self.all_final_ep_lengths = np.zeros((conf.eval.final_eval_times, self.final_eval_episodes))
 
         # Build a schedule for evaluations. The list is sorted by the time step (int) and points to an evaluation
-        # (LS_EVAL, FREQ_EVAL, (FINAL_EVAL, i)) that should be done at or after that time step (evaluations are only
+        # (LSEval(), FreqEval(), FinalEval(i)) that should be done at or after that time step (evaluations are only
         # ever done when a rollout is completed).
         t_start = 0 if phase_index < 2 else conf.phases[phase_index - 2]  # don't queue freq evals before phase start
         t_freqs = [t for t in range(0, conf.phases[-1] + 1, conf.eval.freq_eval_interval) if t >= t_start]
@@ -73,10 +62,10 @@ class LandscapeEvalCallback(BaseCallback):
             .round()
             .astype(int)
         )
-        self.eval_schedule: list[tuple[int, Evaluation, int]] = []  # [(t, eval_type, i (only for final eval!))]
-        self.eval_schedule.append((conf.phases[phase_index - 1], Evaluation.LS_EVAL, -1))
-        self.eval_schedule.extend([(t_freq, Evaluation.FREQ_EVAL, -1) for t_freq in t_freqs])
-        self.eval_schedule.extend([(t, Evaluation.FINAL_EVAL, i) for i, t in enumerate(t_finals, start=1)])
+        self.eval_schedule: list[tuple[int, EvalStage]] = []  # [(t, eval_type, i (only for final eval!))]
+        self.eval_schedule.append((conf.phases[phase_index - 1], LSEval()))
+        self.eval_schedule.extend([(t_freq, FreqEval()) for t_freq in t_freqs])
+        self.eval_schedule.extend([(t, FinalEval(i)) for i, t in enumerate(t_finals, start=1)])
         self.eval_schedule = sorted(self.eval_schedule, key=lambda tup: tup[0], reverse=True)
         print(self.eval_schedule)
 
@@ -90,12 +79,6 @@ class LandscapeEvalCallback(BaseCallback):
         self.max_ep_length = conf.viz.max_ep_length
         self.hist_bins = conf.viz.hist_bins + 1  # internally used for np.linspace, so one more is needed
 
-    # def _on_training_start(self) -> None:
-    #     assert self.model is not None
-    #     # Evaluation right after loading (for nicer charts)
-    #     self.num_timesteps = self.model.num_timesteps
-    #     self.after_update()
-
     def after_update(self) -> None:
         """Triggered in the learning loop after a rollout, and after updates have been made to the policy.
 
@@ -103,35 +86,19 @@ class LandscapeEvalCallback(BaseCallback):
         """
         ls_eval, freq_eval, final_eval_i = False, False, 0
         while len(self.eval_schedule) > 0:
-            t, _, _ = self.eval_schedule[-1]
+            t, _ = self.eval_schedule[-1]
             if t > self.num_timesteps:
                 break
 
-            t, e, i = self.eval_schedule.pop()
-            match e, i:
-                case Evaluation.FREQ_EVAL, _:
+            t, e = self.eval_schedule.pop()
+            match e:
+                case FreqEval():
                     freq_eval = True
-                case Evaluation.LS_EVAL, _:
+                case LSEval():
                     ls_eval = True
-                case Evaluation.FINAL_EVAL, i:
+                case FinalEval(i):
                     final_eval_i = i
-                case _:
-                    raise Exception("unreachable!")
         self.evaluate_policy(ls_eval, freq_eval, final_eval_i)
-
-    # def _on_step(self) -> bool:
-    #     # print(f"_on_step() at {self.num_timesteps}")
-    #     freq_eval = self.eval_freq > 0 and self.n_calls % self.eval_freq == 0  # or (self.n_calls == 1)
-    #     # if self.n_calls in self.t_final_evals:
-    #     #     final_eval = np.where(self.t_final_evals == self.n_calls)
-    #     final_eval = False
-    #     final_eval_i = -1
-    #     for i, t_final_eval in enumerate(self.t_final_evals):
-    #         if self.n_calls == t_final_eval:
-    #             final_eval = True
-    #             final_eval_i = i
-    #     self._evaluate(False, freq_eval, final_eval, final_eval_i)
-    #     return not (self.t_final_evals[-1] == self.n_calls)
 
     def _on_step(self) -> bool:
         """Stop training when all evaluations have been done."""
@@ -195,7 +162,6 @@ class LandscapeEvalCallback(BaseCallback):
             model=self.model,
             env=self.eval_env,
             n_eval_episodes=eval_episodes,
-            # callback=self._log_success_callback,
             return_episode_rewards=True,
         )
         returns = np.array(returns)
@@ -217,7 +183,6 @@ class LandscapeEvalCallback(BaseCallback):
         # self.logger.record: logs time-dependent values to line plots
         # self.run.summary: logs just once for a run, save raw data
         log_dict: dict[str, Any] = {}
-
         for f, s, s_returns, s_ep_lengths in [
             (ls_eval, "ls_eval", ls_returns, ls_ep_lengths),
             (final_eval, f"final_eval_{final_eval_i}", final_returns, final_ep_lengths),
@@ -236,7 +201,6 @@ class LandscapeEvalCallback(BaseCallback):
             log_dict["freq_eval/mean_return"] = np.mean(freq_returns)
             log_dict["freq_eval/mean_ep_length"] = np.mean(freq_ep_lengths)
             # extra stuff:
-            # print(f"{self.run.id} {self.num_timesteps} {np.mean(freq_returns)}")
             # log_dict["freq_eval/exploration_final_eps"] = self.model.exploration_final_eps
             # log_dict["freq_eval/exploration_initial_eps"] = self.model.exploration_initial_eps
             # log_dict["freq_eval/exploration_rate"] = self.model.exploration_rate
@@ -245,11 +209,8 @@ class LandscapeEvalCallback(BaseCallback):
         log_dict["time/total_timesteps"] = self.num_timesteps
         self.run.log(log_dict)
 
-        # TODO just for testing:
-        # self.model.custom_save(self.ls_model_save_path, seed=self.agent_seed)
+        # Save ("checkpoint") the model at the end of the landscape stage:
         if ls_eval:
             if self.verbose > 0:
                 print(f"Saving model checkpoint to {self.ls_model_save_path}")
             self.model.custom_save(self.ls_model_save_path, seed=self.agent_seed)
-
-        return

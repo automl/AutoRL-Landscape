@@ -1,6 +1,6 @@
 import numpy as np
 
-from autorl_landscape.util.compare import choose_best_conf, construct_2d
+from autorl_landscape.util.compare import choose_best_policy, construct_2d
 
 
 def test_compare() -> None:
@@ -20,7 +20,7 @@ def test_compare() -> None:
             [[8, 8, 8, 8], [7, 7, 7, 50]],  # m 8 17.75 (total 12.875); iqm 8 7 (total 7.75)
         ]
     )
-    best_id = choose_best_conf(run_ids, final_mean_rewards, None)
+    best_id = choose_best_policy(run_ids, final_mean_rewards, None)
     assert best_id == "e"
 
 

@@ -17,7 +17,3 @@ def seed_rl_context(agent: BaseAlgorithm, seed: int) -> None:
     agent.action_space.seed(seed)
     agent.action_space.np_random.seed(seed)
     agent.set_random_seed(seed)
-
-    # No impact on DQN?:
-    # torch.manual_seed(seed)
-    # np.random.seed(seed)

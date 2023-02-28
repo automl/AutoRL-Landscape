@@ -1,7 +1,6 @@
 from typing import Iterable, TypeVar
 
 import argparse
-from datetime import datetime
 from itertools import zip_longest
 from pathlib import Path
 
@@ -15,9 +14,9 @@ from omegaconf import DictConfig, OmegaConf
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
 from autorl_landscape.ls_models.triple_gp import TripleGPModel
-from autorl_landscape.train import run_phase
+from autorl_landscape.run.phase import start_phases
 from autorl_landscape.util.data import read_wandb_csv, split_phases
-from autorl_landscape.util.download import download_data, get_all_tags
+from autorl_landscape.util.download import download_data
 from autorl_landscape.visualize import FIGSIZES, LEGEND_FSIZE, TITLE_FSIZE, visualize_data_samples, visualize_nd
 
 # ENTITY = "kwie98"
@@ -213,42 +212,3 @@ def _prepare_hydra(args: argparse.Namespace) -> DictConfig:
 def _transpose(ll: Iterable[Iterable[T]]) -> list[list[T]]:
     """Transposes lists of lists (or other things you can iterate over)."""
     return list(map(list, zip_longest(*ll, fillvalue=None)))
-
-
-def start_phases(conf: DictConfig) -> None:
-    """Run the experiment with the given configuration.
-
-    Args:
-        conf: Hydra configuration
-    """
-    # check whether given tag is unused (to not mess up other experiments):
-    tags = get_all_tags(conf.wandb.entity, conf.wandb.project)
-    assert type(conf.wandb.experiment_tag) == str
-    if conf.wandb.experiment_tag != "debug":
-        assert conf.wandb.experiment_tag not in tags, f"Use a unique experiment tag for new experiments! Used: {tags}"
-
-    # remember starting time of this run for saving all phase data:
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    # TODO still not quite sure what this does but error message seems to be gone
-    # wandb.tensorboard.patch(root_logdir="...")
-
-    if len(conf.phases) > 1:
-        if conf.phases[-2] >= int(conf.phases[-1] * conf.eval.final_eval_start):
-            raise Exception(
-                "Last phase(s) too short! Not enough timesteps for all final evaluations.\n"
-                f"Last phase start: {conf.phases[-2]}.\n"
-                f"final_eval start: {conf.eval.final_eval_start}"
-            )
-
-    if not all(x < y for x, y in zip(conf.phases, conf.phases[1:])):
-        raise Exception(f"Phases need to be strictly increasing. Got: {conf.phases}")
-
-    ancestor = None
-    for phase_index, _ in enumerate(conf.phases, start=1):
-        run_phase(conf, phase_index, timestamp, ancestor)
-        ancestor = (
-            Path(f"phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_{phase_index}/best_agent")
-            .resolve()
-            .relative_to(Path.cwd())
-        )
