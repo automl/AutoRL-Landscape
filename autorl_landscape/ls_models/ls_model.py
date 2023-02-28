@@ -9,7 +9,7 @@ from sklearn.base import BaseEstimator
 
 from autorl_landscape.analyze.visualization import Visualization
 from autorl_landscape.run.compare import iqm
-from autorl_landscape.util.ls_sampler import DimInfo
+from autorl_landscape.util.ls_sampler import LSDimInfo
 
 
 class LSModel(BaseEstimator):
@@ -47,17 +47,17 @@ class LSModel(BaseEstimator):
             y_dict = {"type": "Float", "lower": y_bounds[0], "upper": y_bounds[1]}
         else:
             y_dict = {"type": "Float", "lower": 0.0, "upper": float(data[0:1]["conf.viz.max_return"])}
-        y_info = DimInfo.from_dim_dict(y_col, y_dict, is_y=True)
+        y_info = LSDimInfo.from_dim_dict(y_col, y_dict, is_y=True)
         assert y_info is not None
         self.y_info = y_info
 
         # extract ls dimensions info from first row of data:
         dim_dicts: list[dict[str, dict[str, Any]]] = literal_eval(data[0:1]["conf.ls.dims"][0])
-        self.dim_info: list[DimInfo] = []
+        self.dim_info: list[LSDimInfo] = []
         """DimInfos for each LS dimension, sorted by name"""
         for d in dim_dicts:
             dim_name, dim_dict = next(iter(d.items()))
-            di = DimInfo.from_dim_dict(dim_name, dim_dict)
+            di = LSDimInfo.from_dim_dict(dim_name, dim_dict)
 
             if di is not None:
                 self.dim_info.append(di)
@@ -112,7 +112,7 @@ class LSModel(BaseEstimator):
         """Get the list of hyperparameter landscape dimension names."""
         return [di.name for di in self.dim_info]
 
-    def get_dim_info(self, name: str) -> DimInfo | None:
+    def get_dim_info(self, name: str) -> LSDimInfo | None:
         """Return matching `DimInfo` to a passed name (can be y_info of any dim_info)."""
         if name == self.y_info.name:
             return self.y_info

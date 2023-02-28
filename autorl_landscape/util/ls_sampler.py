@@ -99,7 +99,7 @@ TICK_PRECISION = 4
 
 
 @dataclass
-class DimInfo:
+class LSDimInfo:
     """Saves information about a hyperparameter landscape dimension."""
 
     name: str
@@ -113,7 +113,7 @@ class DimInfo:
     base: float | None = None
 
     @classmethod
-    def from_dim_dict(cls, dim_name: str, dim_dict: dict[str, Any], is_y: bool = False) -> DimInfo | None:
+    def from_dim_dict(cls, dim_name: str, dim_dict: dict[str, Any], is_y: bool = False) -> LSDimInfo | None:
         """Constructs a `DimInfo` object given a name and dictionary as found in the exported data."""
         prefix = "" if is_y else "ls."
         if dim_name.startswith("neg_"):
@@ -137,7 +137,7 @@ class DimInfo:
                 upper = dim_dict["upper"]
                 u2f: Transformer = lambda x: negator(unit_to_float(x, lower, upper))
                 f2u: Transformer = lambda x: float_to_unit(negator(x), lower, upper)
-                fmt: Formatter = lambda val, _: f"{DimInfo._round(u2f(val), tick_precision)}"
+                fmt: Formatter = lambda val, _: f"{LSDimInfo._round(u2f(val), tick_precision)}"
                 di = cls(dim_name_, "Float", lower, upper, u2f, f2u, fmt)
             case "Log":
                 lower = dim_dict["lower"]
@@ -145,7 +145,7 @@ class DimInfo:
                 b = dim_dict["base"]
                 u2l: Transformer = lambda x: negator(unit_to_log(x, b, lower, upper))
                 l2u: Transformer = lambda x: log_to_unit(negator(x), b, lower, upper)
-                fmt: Formatter = lambda val, _: f"{DimInfo._round(u2l(val), tick_precision)}"
+                fmt: Formatter = lambda val, _: f"{LSDimInfo._round(u2l(val), tick_precision)}"
                 di = cls(dim_name_, "Log", lower, upper, u2l, l2u, fmt, b)
             case weird_val:
                 raise Exception(f"Weird dimension type {weird_val} found!")
@@ -153,7 +153,7 @@ class DimInfo:
 
     def __lt__(self, other: object) -> bool:
         """Sort based on dimension name."""
-        if not isinstance(other, DimInfo):
+        if not isinstance(other, LSDimInfo):
             raise NotImplementedError
         return self.name < other.name
 

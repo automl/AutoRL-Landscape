@@ -1,4 +1,4 @@
-from typing import Any, Callable, ParamSpec, Sequence, Tuple, TypeVar
+from typing import Any, Callable, Sequence, Tuple, TypeVar
 
 import time
 from datetime import datetime
@@ -100,12 +100,11 @@ def phase(conf: DictConfig, phase_index: int, timestamp: str, ancestor: Path | N
 
 
 T = TypeVar("T")
-P = ParamSpec("P")
 
 
 def schedule_runs(
     executor: submitit.AutoExecutor,
-    fn: Callable[P, T],
+    fn: Callable[..., T],
     fn_args: Sequence[Tuple[Any, ...]],  # [(x, y, z, ...)]
     num_parallel: int,
     polling_rate: float = 1.0,
