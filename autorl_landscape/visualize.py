@@ -17,8 +17,8 @@ from pandas import DataFrame
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.inspection import PartialDependenceDisplay
 
+from autorl_landscape.analyze.visualization import Visualization
 from autorl_landscape.ls_models.ls_model import LSModel
-from autorl_landscape.types.visualization import Visualization
 from autorl_landscape.util.data import read_wandb_csv
 from autorl_landscape.util.grid_space import grid_space_nd
 

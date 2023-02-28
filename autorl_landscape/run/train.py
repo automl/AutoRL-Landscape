@@ -43,7 +43,7 @@ def train_agent(
 
     # Setup wandb:
     assert type(conf.wandb.experiment_tag) == str  # should hold?
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
     run = wandb.init(
         project=conf.wandb.project,
         tags=[conf.wandb.experiment_tag],
