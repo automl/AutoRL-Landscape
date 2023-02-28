@@ -2,30 +2,25 @@ from typing import Any, Optional, Tuple
 
 from pathlib import Path
 
-import gym
 import submitit
 import wandb
 from numpy.typing import NDArray
 from omegaconf import DictConfig, OmegaConf
-from stable_baselines3.common.monitor import Monitor
 
 from autorl_landscape.custom_agents.dqn import CustomDQN
 from autorl_landscape.custom_agents.sac import CustomSAC
+from autorl_landscape.run.rl_context import make_env
 from autorl_landscape.util.callback import LandscapeEvalCallback
 from autorl_landscape.util.compare import choose_best_conf, construct_2d
 from autorl_landscape.util.ls_sampler import construct_ls
 from autorl_landscape.util.schedule import schedule
 
-
-def make_env(env_name: str, seed: int) -> gym.Env:
-    """Quick helper to create a gym env and seed it."""
-    env = gym.make(env_name)
-    env = Monitor(env)
-    env.seed(seed)
-    return env
-    # wrapped = Monitor(env)
-    # wrapped.seed(seed)
-    # return wrapped
+# def make_env(env_name: str, seed: int) -> gym.Env:
+#     """Quick helper to create a gym env and seed it."""
+#     env = gym.make(env_name)
+#     env = Monitor(env)
+#     env.seed(seed)
+#     return env
 
 
 def run_phase(conf: DictConfig, phase_index: int, timestamp: str, ancestor: Optional[Path] = None) -> None:
@@ -50,26 +45,13 @@ def run_phase(conf: DictConfig, phase_index: int, timestamp: str, ancestor: Opti
     for conf_index, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
         # set hyperparameters:
         ls_conf = {
-            # [256, 256] translates to three layers:
-            # Linear(i, 256), relu
-            # Linear(256, 256), relu
-            # Linear(256, o)
-            "policy_kwargs": {"net_arch": [int(c["nn_width"])] * int(c["nn_length"] - 1)},
             "learning_rate": c["learning_rate"],
             "gamma": 1 - c["neg_gamma"],
-            "exploration_final_eps": c["exploration_final_eps"],
+            # "exploration_final_eps": c["exploration_final_eps"],
         }
-        ls_conf_readable = {
-            "nn_width": c["nn_width"],
-            "nn_length": c["nn_length"],
-            "learning_rate": c["learning_rate"],
-            "gamma": 1 - c["neg_gamma"],
-            "exploration_final_eps": c["exploration_final_eps"],
-        }
-        del c
 
         for seed in range(conf.seeds.agent, conf.seeds.agent + conf.num_seeds):
-            task = (conf, phase_index, timestamp, ancestor, ls_conf, ls_conf_readable, seed, conf_index, phase_path)
+            task = (conf, phase_index, timestamp, ancestor, ls_conf, seed, conf_index, phase_path)
             tasks.append(task)
 
     results = schedule(executor, train_agent, tasks, num_parallel=conf.slurm.num_parallel, polling_rate=10)
@@ -95,7 +77,6 @@ def train_agent(
     timestamp: str,
     ancestor: Optional[Path],
     ls_conf: dict[str, Any],
-    ls_conf_readable: dict[str, Any],
     seed: int,
     conf_index: int,
     phase_path: str,
@@ -108,7 +89,6 @@ def train_agent(
         timestamp: Timestamp to distinguish this whole run (not just the current phase!), for saving
         ancestor: Path to a saved trained agent from which learning shall be commenced
         ls_conf: Setting of the hyperparameters from the landscape
-        ls_conf_readable: ls_conf but for logging
         seed: seed for the Agent, for verifying performance of a configuration over multiple random initializations.
         conf_index: For `LandscapeEvalCallback`
         phase_path: e.g. "phase_results/{conf.agent.name}/{conf.env.name}/{date_str}/{phase_str}"
@@ -127,7 +107,7 @@ def train_agent(
         project=conf.wandb.project,
         tags=[conf.wandb.experiment_tag],
         config={
-            "ls": ls_conf_readable,
+            "ls": ls_conf,
             "conf": OmegaConf.to_object(conf),
             "meta": {
                 "timestamp": timestamp,
@@ -141,6 +121,7 @@ def train_agent(
         monitor_gym=False,
         save_code=False,
         dir=project_root,
+        mode=conf.wandb.mode,
     )
     assert run is not None
 
@@ -167,11 +148,11 @@ def train_agent(
         # NOTE set hyperparameters:
         agent.learning_rate = ls_conf["learning_rate"]
         agent.gamma = ls_conf["gamma"]
-        print(f"{ls_conf['exploration_final_eps']=}")
-        agent.exploration_rate = ls_conf["exploration_final_eps"]
-        agent.exploration_final_eps = ls_conf["exploration_final_eps"]
-        agent.exploration_initial_eps = ls_conf["exploration_final_eps"]
-        agent.exploration_schedule = lambda _: ls_conf["exploration_final_eps"]
+        # print(f"{ls_conf['exploration_final_eps']=}")
+        # agent.exploration_rate = ls_conf["exploration_final_eps"]
+        # agent.exploration_final_eps = ls_conf["exploration_final_eps"]
+        # agent.exploration_initial_eps = ls_conf["exploration_final_eps"]
+        # agent.exploration_schedule = lambda _: ls_conf["exploration_final_eps"]
 
     landscape_eval_callback = LandscapeEvalCallback(
         conf, phase_index, eval_env, f"{phase_path}/agents/{run.id}", run, seed

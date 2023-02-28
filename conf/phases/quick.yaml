@@ -8,6 +8,6 @@ agent:
   hps:
     # WARNING these overwrite values from the combo configuration!
     learning_starts: 100 # start training quite early
-    train_freq: 64 # update policy much more often
+    # train_freq: 64 # update policy much more often
 eval:
   freq_eval_interval: 50

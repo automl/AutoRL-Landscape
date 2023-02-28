@@ -9,6 +9,7 @@ wandb:
   project: paper
   entity: kwie98
   experiment_tag: ???
+  mode: ???
 
 seeds:
   agent: 44 # seed for first agent of a configuration

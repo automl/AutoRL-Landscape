@@ -24,6 +24,7 @@ def custom_learn(
 
     assert isinstance(callback, LandscapeEvalCallback)
     callback.on_training_start(locals(), globals())
+    callback.after_update()
 
     while agent.num_timesteps < total_timesteps:
         rollout = agent.collect_rollouts(

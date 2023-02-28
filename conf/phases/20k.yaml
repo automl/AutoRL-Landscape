@@ -1,6 +1,9 @@
 # @package _global_
 
 # Shortened training with just two phases: 
+agent:
+  hps:
+    learning_starts: 1000
 eval:
   freq_eval_interval: 1000
 phases:

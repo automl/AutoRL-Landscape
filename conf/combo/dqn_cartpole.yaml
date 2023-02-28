@@ -16,9 +16,7 @@ agent:
   zoo_optimal_ls:
     learning_rate: 2.3e-3
     neg_gamma: 0.01
-    nn_length: 3
-    nn_width: 256
-    exploration_final_eps: 0.04
+    # exploration_final_eps: 0.04
 eval:
   freq_eval_episodes: 10
   ls_eval_episodes: 20

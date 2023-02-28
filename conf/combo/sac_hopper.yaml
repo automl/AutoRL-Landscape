@@ -11,9 +11,6 @@ agent:
   zoo_optimal_ls:
     learning_rate: 0.0003
     neg_gamma: 0.01
-    nn_length: 3 # TODO is this right?
-    nn_width: 256
-  # total_timesteps: 500000
 eval:
   freq_eval_episodes: 10
   ls_eval_episodes: 20

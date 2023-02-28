@@ -179,8 +179,8 @@
       "console": "integratedTerminal",
       "args": [
         "run",
-        "combo=dqn_cartpole",
-        "ls=sobol_2",
+        "combo=sac_hopper",
+        "ls=sac",
         "slurm=debug",
         "phases=quick",
         "num_confs=1",

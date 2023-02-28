@@ -63,7 +63,7 @@ class LandscapeEvalCallback(BaseCallback):
         # (LS_EVAL, FREQ_EVAL, (FINAL_EVAL, i)) that should be done at or after that time step (evaluations are only
         # ever done when a rollout is completed).
         t_start = 0 if phase_index < 2 else conf.phases[phase_index - 2]  # don't queue freq evals before phase start
-        t_freqs = filter(lambda t: t >= t_start, range(0, conf.phases[-1] + 1, conf.eval.freq_eval_interval))
+        t_freqs = [t for t in range(0, conf.phases[-1] + 1, conf.eval.freq_eval_interval) if t >= t_start]
         t_finals = (
             np.linspace(
                 float(conf.eval.final_eval_start) * int(conf.phases[-1]),
@@ -78,6 +78,7 @@ class LandscapeEvalCallback(BaseCallback):
         self.eval_schedule.extend([(t_freq, Evaluation.FREQ_EVAL, -1) for t_freq in t_freqs])
         self.eval_schedule.extend([(t, Evaluation.FINAL_EVAL, i) for i, t in enumerate(t_finals, start=1)])
         self.eval_schedule = sorted(self.eval_schedule, key=lambda tup: tup[0], reverse=True)
+        print(self.eval_schedule)
 
         self.ls_model_save_path = ls_model_save_path
         self.run = run
@@ -93,7 +94,7 @@ class LandscapeEvalCallback(BaseCallback):
     #     assert self.model is not None
     #     # Evaluation right after loading (for nicer charts)
     #     self.num_timesteps = self.model.num_timesteps
-    #     self._evaluate(False, True, 0)
+    #     self.after_update()
 
     def after_update(self) -> None:
         """Triggered in the learning loop after a rollout, and after updates have been made to the policy.
@@ -105,8 +106,8 @@ class LandscapeEvalCallback(BaseCallback):
             t, _, _ = self.eval_schedule[-1]
             if t > self.num_timesteps:
                 break
-            t, e, i = self.eval_schedule.pop()
 
+            t, e, i = self.eval_schedule.pop()
             match e, i:
                 case Evaluation.FREQ_EVAL, _:
                     freq_eval = True
@@ -134,6 +135,18 @@ class LandscapeEvalCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         """Stop training when all evaluations have been done."""
+        with np.printoptions(precision=4, linewidth=500, suppress=True):
+            print(
+                "{} {} {} {} {} {}".format(
+                    self.num_timesteps,
+                    self.locals["new_obs"],
+                    self.locals["rewards"],
+                    self.locals["dones"],
+                    self.locals["replay_buffer"].observations.sum(),
+                    self.locals["replay_buffer"].pos,
+                    # sum([l.sum() for l in self.model.q_net.parameters()]),
+                )
+            )
         return len(self.eval_schedule) > 0
 
     def evaluate_policy(self, ls_eval: bool, freq_eval: bool, final_eval_i: int) -> None:
@@ -223,15 +236,17 @@ class LandscapeEvalCallback(BaseCallback):
             log_dict["freq_eval/mean_return"] = np.mean(freq_returns)
             log_dict["freq_eval/mean_ep_length"] = np.mean(freq_ep_lengths)
             # extra stuff:
-            print(f"{self.run.id} {self.num_timesteps} {np.mean(freq_returns)}")
-            log_dict["freq_eval/exploration_final_eps"] = self.model.exploration_final_eps
-            log_dict["freq_eval/exploration_initial_eps"] = self.model.exploration_initial_eps
-            log_dict["freq_eval/exploration_rate"] = self.model.exploration_rate
-            log_dict["freq_eval/exploration_fraction"] = self.model.exploration_fraction
+            # print(f"{self.run.id} {self.num_timesteps} {np.mean(freq_returns)}")
+            # log_dict["freq_eval/exploration_final_eps"] = self.model.exploration_final_eps
+            # log_dict["freq_eval/exploration_initial_eps"] = self.model.exploration_initial_eps
+            # log_dict["freq_eval/exploration_rate"] = self.model.exploration_rate
+            # log_dict["freq_eval/exploration_fraction"] = self.model.exploration_fraction
 
         log_dict["time/total_timesteps"] = self.num_timesteps
         self.run.log(log_dict)
 
+        # TODO just for testing:
+        # self.model.custom_save(self.ls_model_save_path, seed=self.agent_seed)
         if ls_eval:
             if self.verbose > 0:
                 print(f"Saving model checkpoint to {self.ls_model_save_path}")
