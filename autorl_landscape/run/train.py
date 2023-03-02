@@ -72,6 +72,11 @@ def train_agent(
         "verbose": 0,  # WARNING Higher than 0 breaks the console output logging with too long keys
         "tensorboard_log": f"runs/{run.id}",
         "seed": seed,
+        # For smaller replay buffers on disk:
+        "optimize_memory_usage": True,
+        "replay_buffer_kwargs": {
+            "handle_timeout_termination": False,
+        },
     }
 
     match conf.agent.name:
@@ -88,16 +93,19 @@ def train_agent(
     else:
         agent = Agent.custom_load(save_path=ancestor, seed=seed)
         # NOTE set hyperparameters:
-        agent.learning_rate = ls_conf["learning_rate"]
-        agent.gamma = ls_conf["gamma"]
-        # print(f"{ls_conf['exploration_final_eps']=}")
-        # agent.exploration_rate = ls_conf["exploration_final_eps"]
-        # agent.exploration_final_eps = ls_conf["exploration_final_eps"]
-        # agent.exploration_initial_eps = ls_conf["exploration_final_eps"]
-        # agent.exploration_schedule = lambda _: ls_conf["exploration_final_eps"]
+        # agent.learning_rate = ls_conf["learning_rate"]
+        # agent.gamma = ls_conf["gamma"]
+        for hp_name, hp_val in ls_conf.items():
+            setattr(agent, hp_name, hp_val)
 
     landscape_eval_callback = LandscapeEvalCallback(
-        conf, phase_index, eval_env, f"{phase_path}/agents/{run.id}", run, seed
+        conf,
+        phase_index,
+        eval_env,
+        f"{phase_path}/agents/{run.id}",
+        run,
+        seed,
+        ls_conf,
     )
     # NOTE total_timesteps setting is too high here for all phases after the first. However, we simply stop learning
     # runs after all needed data has been colleted, through the callback's _on_step() method.

@@ -218,6 +218,14 @@
         "--model=rbf"
       ],
       "justMyCode": false
+    },
+    {
+      "name": "exponential functions",
+      "type": "python",
+      "request": "launch",
+      "program": "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/autorl_landscape/util/exponential_functions.py",
+      "console": "integratedTerminal",
+      "justMyCode": false
     }
   ]
 }

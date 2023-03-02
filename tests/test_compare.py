@@ -1,6 +1,6 @@
 import numpy as np
 
-from autorl_landscape.util.compare import choose_best_policy, construct_2d
+from autorl_landscape.run.compare import choose_best_policy, construct_2d
 
 
 def test_compare() -> None:

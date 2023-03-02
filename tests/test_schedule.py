@@ -4,7 +4,7 @@ import time
 
 import submitit
 
-from autorl_landscape.util.schedule import schedule_runs
+from autorl_landscape.run.phase import schedule_runs
 
 
 def test_null() -> None:

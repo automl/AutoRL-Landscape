@@ -36,9 +36,11 @@ class LandscapeEvalCallback(BaseCallback):
         ls_model_save_path: str,
         run: Union[Run, RunDisabled],
         agent_seed: int,
+        ls_conf: dict[str, Any],
     ):
         super().__init__(verbose=1)
         self.eval_env = eval_env
+        self.ls_conf = ls_conf
 
         self.freq_eval_episodes = conf.eval.freq_eval_episodes
         self.ls_eval_episodes = conf.eval.ls_eval_episodes
@@ -67,7 +69,7 @@ class LandscapeEvalCallback(BaseCallback):
         self.eval_schedule.extend([(t_freq, FreqEval()) for t_freq in t_freqs])
         self.eval_schedule.extend([(t, FinalEval(i)) for i, t in enumerate(t_finals, start=1)])
         self.eval_schedule = sorted(self.eval_schedule, key=lambda tup: tup[0], reverse=True)
-        print(self.eval_schedule)
+        # print(self.eval_schedule)
 
         self.ls_model_save_path = ls_model_save_path
         self.run = run
@@ -200,7 +202,9 @@ class LandscapeEvalCallback(BaseCallback):
         if freq_eval:
             log_dict["freq_eval/mean_return"] = np.mean(freq_returns)
             log_dict["freq_eval/mean_ep_length"] = np.mean(freq_ep_lengths)
-            # extra stuff:
+            # TODO may not work for DQN because of exploration rate stuff:
+            for hp_name in self.ls_conf.keys():
+                log_dict[f"freq_eval/{hp_name}"] = getattr(self.model, hp_name)
             # log_dict["freq_eval/exploration_final_eps"] = self.model.exploration_final_eps
             # log_dict["freq_eval/exploration_initial_eps"] = self.model.exploration_initial_eps
             # log_dict["freq_eval/exploration_rate"] = self.model.exploration_rate

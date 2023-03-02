@@ -6,8 +6,8 @@ defaults: # bigger sub-configurations to swap around
   - _self_
 
 wandb:
-  project: paper
-  entity: kwie98
+  project: ???
+  entity: ???
   experiment_tag: ???
   mode: ???
 
@@ -16,5 +16,5 @@ seeds:
   ls: 123 # seed for configuration sampler
   eval: 456 # seed for eval env
 
-num_confs: ??? # number of landscape samples, needs to be power of 2
+num_confs: ??? # number of landscape samples, needs to be power of 2 when using Sobol ls sampler
 num_seeds: ??? # seed for agents and environments

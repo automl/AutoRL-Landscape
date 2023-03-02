@@ -13,6 +13,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import BoundaryNorm, TwoSlopeNorm
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpecFromSubplotSpec
+from omegaconf import DictConfig, OmegaConf
 from pandas import DataFrame
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.inspection import PartialDependenceDisplay
@@ -21,6 +22,7 @@ from autorl_landscape.analyze.visualization import Visualization
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.util.data import read_wandb_csv
 from autorl_landscape.util.grid_space import grid_space_nd
+from autorl_landscape.util.ls_sampler import construct_ls
 
 # font sizes:
 TITLE_FSIZE = 24
@@ -422,6 +424,32 @@ def visualize_data_samples(file: str) -> None:
     fig_file_part = "images/viz_samples"
     Path(fig_file_part).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(f"{fig_file_part}.pdf", bbox_inches="tight")
+
+
+def visualize_landscape_spec(conf: DictConfig) -> None:
+    """Visualize landscape spec to inspect the sampled patterns.
+
+    Args:
+        conf: Hydra configuration
+    """
+    df = construct_ls(conf)
+    fig = plt.figure(figsize=(16, 16))
+    fig.tight_layout()
+    # ax = fig.add_subplot(1, 1, 1, projection="3d")  # TODO use actual number of phases
+    for i in [1, 2]:
+        ax = fig.add_subplot(1, 3, i)
+        ax.scatter(df["learning_rate"], df["gamma"])
+        ax.set_ylabel("gamma", fontsize=LABEL_FSIZE)
+        if i == 1:
+            ax.set_xscale("log")
+            ax.set_xlabel("learning rate (log scale)", fontsize=LABEL_FSIZE)
+        else:
+            ax.set_xlabel("learning rate", fontsize=LABEL_FSIZE)
+    ax = fig.add_subplot(1, 3, 3)
+    ax.text(
+        0.1, 0.5, f"num_confs: {conf.num_confs}\n" + str(OmegaConf.to_yaml(conf.ls)), va="center", fontsize=LABEL_FSIZE
+    )
+    plt.show()
 
 
 def plot_surface_(ax: Axes, pt: DataFrame, kwargs: dict[str, Any]) -> Artist:

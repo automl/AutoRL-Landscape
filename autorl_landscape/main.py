@@ -13,11 +13,17 @@ from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
-from autorl_landscape.ls_models.triple_gp import TripleGPModel
 from autorl_landscape.run.phase import start_phases
 from autorl_landscape.util.data import read_wandb_csv, split_phases
 from autorl_landscape.util.download import download_data
-from autorl_landscape.visualize import FIGSIZES, LEGEND_FSIZE, TITLE_FSIZE, visualize_data_samples, visualize_nd
+from autorl_landscape.visualize import (
+    FIGSIZES,
+    LEGEND_FSIZE,
+    TITLE_FSIZE,
+    visualize_data_samples,
+    visualize_landscape_spec,
+    visualize_nd,
+)
 
 # ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 251
@@ -52,6 +58,13 @@ def main() -> None:
     # parser_viz_samples.add_argument("overrides", nargs="*", help="Hydra overrides")
     parser_viz_samples.add_argument("data", help="csv file containing data of all runs")
     parser_viz_samples.set_defaults(func="viz_samples")
+
+    # phases viz spec ...
+    parser_viz_spec = viz_subparsers.add_parser(
+        "spec", help="Visualize configurations sampled for a specific configuration"
+    )
+    parser_viz_spec.add_argument("overrides", nargs="*", help="Hydra overrides")
+    parser_viz_spec.set_defaults(func="viz_spec")
 
     # phases ana ...
     parser_ana = subparsers.add_parser(
@@ -100,8 +113,8 @@ def main() -> None:
             start_phases(_prepare_hydra(args))
         case "viz_samples":
             visualize_data_samples(args.data)
-        # case "viz_data":
-        #     visualize_data(args.data)
+        case "viz_spec":
+            visualize_landscape_spec(_prepare_hydra(args))
         case "maps" | "modalities" | "graphs":
             # lazily import ana-only deps:
             from autorl_landscape.analyze.modalities import check_modality
@@ -119,6 +132,8 @@ def main() -> None:
                     case "rbf":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                     case "triple-gp":
+                        from autorl_landscape.ls_models.triple_gp import TripleGPModel
+
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                         model.fit()
                     case _:
@@ -158,6 +173,8 @@ def main() -> None:
                     case "rbf":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns")
                     case "triple-gp":
+                        from autorl_landscape.ls_models.triple_gp import TripleGPModel
+
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns")
                         model.fit()
                     case _:

@@ -74,11 +74,12 @@ def phase(conf: DictConfig, phase_index: int, timestamp: str, ancestor: Path | N
 
     for conf_index, c in construct_ls(conf).iterrows():  # NOTE iterrows() changes datatypes, we get only np.float64
         # set hyperparameters:
-        ls_conf = {
-            "learning_rate": c["learning_rate"],
-            "gamma": 1 - c["neg_gamma"],
-            # "exploration_final_eps": c["exploration_final_eps"],
-        }
+        # ls_conf = {
+        #     "learning_rate": c["learning_rate"],
+        #     "gamma": 1 - c["neg_gamma"],
+        #     # "exploration_final_eps": c["exploration_final_eps"],
+        # }
+        ls_conf = dict(c)
 
         for seed in range(conf.seeds.agent, conf.seeds.agent + conf.num_seeds):
             task = (conf, phase_index, timestamp, ancestor, ls_conf, seed, conf_index, phase_path)
