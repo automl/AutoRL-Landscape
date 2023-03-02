@@ -1,5 +1,5 @@
 mujoco-py==2.1.2.14
-stable-baselines3==1.6.0
+stable-baselines3==1.7.0
 submitit==1.4.5
 tensorflow==2.10
 gpflow==2.5.2
