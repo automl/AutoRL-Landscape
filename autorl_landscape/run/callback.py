@@ -104,18 +104,18 @@ class LandscapeEvalCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         """Stop training when all evaluations have been done."""
-        with np.printoptions(precision=4, linewidth=500, suppress=True):
-            print(
-                "{} {} {} {} {} {}".format(
-                    self.num_timesteps,
-                    self.locals["new_obs"],
-                    self.locals["rewards"],
-                    self.locals["dones"],
-                    self.locals["replay_buffer"].observations.sum(),
-                    self.locals["replay_buffer"].pos,
-                    # sum([l.sum() for l in self.model.q_net.parameters()]),
-                )
-            )
+        # with np.printoptions(precision=4, linewidth=500, suppress=True):
+        #     print(
+        #         "{} {} {} {} {} {}".format(
+        #             self.num_timesteps,
+        #             self.locals["new_obs"],
+        #             self.locals["rewards"],
+        #             self.locals["dones"],
+        #             self.locals["replay_buffer"].observations.sum(),
+        #             self.locals["replay_buffer"].pos,
+        #             # sum([l.sum() for l in self.model.q_net.parameters()]),
+        #         )
+        #     )
         return len(self.eval_schedule) > 0
 
     def evaluate_policy(self, ls_eval: bool, freq_eval: bool, final_eval_i: int) -> None:

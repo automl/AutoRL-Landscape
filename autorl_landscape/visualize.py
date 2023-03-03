@@ -435,17 +435,19 @@ def visualize_landscape_spec(conf: DictConfig) -> None:
     df = construct_ls(conf)
     fig = plt.figure(figsize=(16, 16))
     fig.tight_layout()
-    # ax = fig.add_subplot(1, 1, 1, projection="3d")  # TODO use actual number of phases
-    for i in [1, 2]:
-        ax = fig.add_subplot(1, 3, i)
-        ax.scatter(df["learning_rate"], df["gamma"])
-        ax.set_ylabel("gamma", fontsize=LABEL_FSIZE)
-        if i == 1:
-            ax.set_xscale("log")
-            ax.set_xlabel("learning rate (log scale)", fontsize=LABEL_FSIZE)
-        else:
-            ax.set_xlabel("learning rate", fontsize=LABEL_FSIZE)
-    ax = fig.add_subplot(1, 3, 3)
+
+    ax = fig.add_subplot(1, 5, 1, projection="3d")
+    ax.scatter(df["learning_rate"], df["gamma"], df["tau"])
+    ax.set_xlabel("learning rate", fontsize=LABEL_FSIZE)
+    ax.set_ylabel("gamma", fontsize=LABEL_FSIZE)
+    ax.set_zlabel("tau", fontsize=LABEL_FSIZE)
+
+    for i, dim_name in enumerate(["learning_rate", "gamma", "tau"], start=2):
+        ax = fig.add_subplot(1, 5, i)
+        # ax.scatter(df["learning_rate"], df["gamma"], df["tau"])
+        ax.scatter(df[dim_name], np.zeros_like(df[dim_name]))
+        ax.set_xlabel(dim_name, fontsize=LABEL_FSIZE)
+    ax = fig.add_subplot(1, 5, 5)
     ax.text(
         0.1, 0.5, f"num_confs: {conf.num_confs}\n" + str(OmegaConf.to_yaml(conf.ls)), va="center", fontsize=LABEL_FSIZE
     )
