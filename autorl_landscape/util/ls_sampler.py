@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from dataclasses import dataclass
+from numbers import Number
 
 import numpy as np
 import pandas as pd
@@ -41,7 +42,8 @@ def construct_ls(conf: DictConfig) -> pd.DataFrame:
             configs = _unit_samples_to_ls(conf, samples, dims)
             return pd.DataFrame(configs, columns=[dim_name for (dim_name, _) in dims])
         case _:
-            raise Exception(f"{conf.ls.type=} is not a known landscape type.")
+            error_msg = f"{conf.ls.type=} is not a known landscape type."
+            raise ValueError(error_msg)
 
 
 def unit_to_float(x: NDArray[Any], lower: float, upper: float) -> NDArray[Any]:
@@ -78,16 +80,16 @@ def natural_log_to_unit(x: NDArray[Any], lower: float, upper: float) -> NDArray[
     return (np.log(x) - np.log(lower)) / (np.log(upper) - np.log(lower))
 
 
-def inverse_unit_to_natural_log(x: NDArray[Any], lower: float, upper: float) -> NDArray[Any]:
+def unit_to_flipped_natural_log(x: NDArray[Any], lower: float, upper: float) -> NDArray[Any]:
     """TODO."""
     # return lower + upper - unit_to_natural_log(1 - x, lower, upper)
     return 1 - np.exp(unit_to_float(1 - x, np.log(1 - upper), np.log(1 - lower)))
 
 
-def inverse_natural_log_to_unit(x: NDArray[Any], lower: float, upper: float) -> NDArray[Any]:
+def flipped_natural_log_to_unit(x: NDArray[Any], lower: float, upper: float) -> NDArray[Any]:
     """TODO."""
     # return 1 - natural_log_to_unit(x, 1 - upper, 1 - lower)
-    raise NotImplementedError
+    return 1 - ((np.log(1 - x) - np.log(1 - upper)) / (np.log(1 - lower) - np.log(1 - upper)))
 
 
 def _unit_samples_to_ls(conf: DictConfig, samples: NDArray[Any], dims: list[tuple[Any, Any]]) -> NDArray[Any]:
@@ -154,17 +156,18 @@ class LSDimension:
                 l2u: Transformer = lambda x: natural_log_to_unit(x, lower, upper)
                 fmt: Formatter = lambda val, _: f"{LSDimension._round(u2l(val), tick_precision)}"
                 di = cls(dim_name_, u2l, l2u, fmt)
-            case "InverseLog":
+            case "FlippedLog":
                 lower = dim_dict["lower"]
                 upper = dim_dict["upper"]
                 # u2l: Transformer = lambda x: 1 - unit_to_natural_log(x, 1 - upper, 1 - lower)
                 # l2u: Transformer = lambda x: 1 - natural_log_to_unit(x, 1 - upper, 1 - lower)
-                u2l: Transformer = lambda x: inverse_unit_to_natural_log(x, lower, upper)
-                l2u: Transformer = lambda x: inverse_natural_log_to_unit(x, lower, upper)
+                u2l: Transformer = lambda x: unit_to_flipped_natural_log(x, lower, upper)
+                l2u: Transformer = lambda x: flipped_natural_log_to_unit(x, lower, upper)
                 fmt: Formatter = lambda val, _: f"{LSDimension._round(u2l(val), tick_precision)}"
                 di = cls(dim_name_, u2l, l2u, fmt)
             case invalid_dim_name:
-                raise Exception(f"{invalid_dim_name=} found!")
+                error_msg = f"{invalid_dim_name=} found!"
+                raise ValueError(error_msg)
         return di
 
     def __lt__(self, other: object) -> bool:
@@ -174,7 +177,7 @@ class LSDimension:
         return self.name < other.name
 
     @staticmethod
-    def _round(number: Any, ndigits: int) -> Any:
+    def _round(number: Number, ndigits: int) -> Number:
         """Round to int if 0 precision, else normal `round` behaviour."""
         if ndigits == 0:
             return int(number)

@@ -7,5 +7,5 @@ agent:
 eval:
   freq_eval_interval: 1000
 phases:
-  - 10000
+  - 15000
   - 20000

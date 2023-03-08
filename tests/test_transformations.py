@@ -1,6 +1,13 @@
 import numpy as np
 
-from autorl_landscape.util.ls_sampler import float_to_unit, natural_log_to_unit, unit_to_float, unit_to_natural_log
+from autorl_landscape.util.ls_sampler import (
+    flipped_natural_log_to_unit,
+    float_to_unit,
+    natural_log_to_unit,
+    unit_to_flipped_natural_log,
+    unit_to_float,
+    unit_to_natural_log,
+)
 
 
 def test_inverse_functions() -> None:
@@ -12,7 +19,7 @@ def test_inverse_functions() -> None:
     function_pairs = [
         (unit_to_float, float_to_unit),
         (unit_to_natural_log, natural_log_to_unit),
-        # (inverse_unit_to_natural_log, inverse_natural_log_to_unit),
+        (unit_to_flipped_natural_log, flipped_natural_log_to_unit),
     ]
     for lb, ub in bound_pairs:
         ls_grid = np.linspace(lb, ub, grid_length)

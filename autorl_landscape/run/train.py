@@ -1,4 +1,4 @@
-from typing import Any, Optional, Tuple
+from typing import Any
 
 from pathlib import Path
 
@@ -16,12 +16,12 @@ def train_agent(
     conf: DictConfig,
     phase_index: int,
     timestamp: str,
-    ancestor: Optional[Path],
+    ancestor: Path | None,
     ls_conf: dict[str, Any],
     seed: int,
     conf_index: int,
     phase_path: str,
-) -> Tuple[int, str, NDArray[Any]]:
+) -> tuple[int, str, NDArray[Any]]:
     """Train an agent, evaluating ls_eval and final_eval.
 
     Args:
@@ -81,17 +81,18 @@ def train_agent(
 
     match conf.agent.name:
         case "DQN":
-            Agent = CustomDQN
+            agent = CustomDQN
         case "SAC":
-            Agent = CustomSAC
+            agent = CustomSAC
         case _:
-            raise Exception("unknown agent")
+            error_msg = "Unknown agent"
+            raise ValueError(error_msg)
 
     # Agent Instantiation:
     if ancestor is None:
-        agent = Agent(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore
+        agent = agent(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore
     else:
-        agent = Agent.custom_load(save_path=ancestor, seed=seed)
+        agent = agent.custom_load(save_path=ancestor, seed=seed)
         # NOTE set hyperparameters:
         # agent.learning_rate = ls_conf["learning_rate"]
         # agent.gamma = ls_conf["gamma"]
@@ -109,7 +110,10 @@ def train_agent(
     )
     # NOTE total_timesteps setting is too high here for all phases after the first. However, we simply stop learning
     # runs after all needed data has been colleted, through the callback's _on_step() method.
-    agent.learn(total_timesteps=conf.phases[-1], callback=landscape_eval_callback, reset_num_timesteps=False)
+    try:
+        agent.learn(total_timesteps=conf.phases[-1], callback=landscape_eval_callback, reset_num_timesteps=False)
+    except ValueError as e:
+        landscape_eval_callback.on_rollout_error(e)
 
     run.finish()
     return conf_index, run.id, landscape_eval_callback.all_final_returns.reshape(-1)

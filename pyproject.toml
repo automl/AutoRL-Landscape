@@ -93,6 +93,7 @@ ignore = [
     "D104",    # Missing docstring in public package
     "D105",    # Missing docstring in magic method
     "D107",    # Missing docstring in __init__ method
+    "E731",    # allow lambdas
     "PLR0913", # Too many arguments
     "PLR0915", # Too many statements
     "S101",    # assert

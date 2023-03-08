@@ -1,6 +1,5 @@
 from typing import Any, Iterable
 
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -26,9 +25,10 @@ def download_data(entity_name: str, project_name: str, experiment_tag: str) -> N
     print("download done")
     vals = [_flatten_dict(v) for v in vals]
     df = pd.DataFrame(vals, index=ids)
-    date_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    path = Path(f"data/{entity_name}_{project_name}/{experiment_tag}_{date_str}.csv")
+    path = Path(f"data/{entity_name}_{project_name}/{experiment_tag}.csv")
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        raise FileExistsError
     with open(path, "w") as file:
         df.to_csv(file)
 

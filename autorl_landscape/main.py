@@ -26,7 +26,7 @@ from autorl_landscape.visualize import (
 )
 
 # ENTITY = "kwie98"
-DEFAULT_GRID_LENGTH = 251
+DEFAULT_GRID_LENGTH = 51
 MODELS = ["hsgp", "rbf", "triple-gp", "mock"]
 VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
 
@@ -122,12 +122,12 @@ def main() -> None:
 
             file = Path(args.data)
             df = read_wandb_csv(file)
-            phase_strs = sorted(df["meta.phase"].unique())
+            phase_indices = sorted(df["meta.phase"].unique())
 
             fig = plt.figure(figsize=FIGSIZES[args.func])
-            global_gs = fig.add_gridspec(1, 1 + len(phase_strs))
-            for phase_str, sub_gs in zip(phase_strs, [gs for gs in global_gs][1:]):
-                phase_data, best_conf = split_phases(df, phase_str)
+            global_gs = fig.add_gridspec(1, 1 + len(phase_indices))
+            for phase_index, sub_gs in zip(phase_indices, [gs for gs in global_gs][1:]):
+                phase_data, best_conf = split_phases(df, phase_index)
                 match args.model:
                     case "rbf":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
@@ -158,7 +158,7 @@ def main() -> None:
                     else:
                         fig_file_part = f"images/ana-{args.func}"
                 row_titles, height_ratios = visualize_nd(
-                    model, fig, sub_gs, args.grid_length, viz_group=args.func, phase_str=phase_str
+                    model, fig, sub_gs, args.grid_length, viz_group=args.func, phase_index=phase_index
                 )
             plot_figure(fig, global_gs, fig_file_part, row_titles, height_ratios, add_legend)
         case "concavity":
@@ -166,9 +166,9 @@ def main() -> None:
 
             file = Path(args.data)
             df = read_wandb_csv(file)
-            phase_strs = sorted(df["meta.phase"].unique())
-            for phase_str in phase_strs:
-                phase_data, _ = split_phases(df, phase_str)
+            phase_indices = sorted(df["meta.phase"].unique())
+            for phase_index in phase_indices:
+                phase_data, _ = split_phases(df, phase_index)
                 match args.model:
                     case "rbf":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns")
@@ -179,7 +179,7 @@ def main() -> None:
                         model.fit()
                     case _:
                         pass
-                print(f"{phase_str}:")
+                print(f"{phase_index}:")
                 smallest_rejecting_ci = find_biggest_nonconcave(model, args.grid_length)
                 print(f"Concavity can be rejected for squeezes stronger than k_{{max}} = {smallest_rejecting_ci:.2f}")
         case "dl":

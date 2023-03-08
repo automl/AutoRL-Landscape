@@ -34,6 +34,7 @@ LEGEND_FSIZE = 15
 # TICK_FSIZE = 1
 # LEGEND_FSIZE = 1
 # plt.rc("legend", fontsize=LEGEND_FSIZE)
+Y_SCALED = 1.0  # make this lower if visualization axis limits are too big in y direction
 
 LABELPAD = 10
 
@@ -58,12 +59,11 @@ FIGSIZES = {
 
 
 def visualize_nd(
-    model: LSModel, fig: Figure, sub_gs: Any, grid_length: int, viz_group: str, phase_str: str
+    model: LSModel, fig: Figure, sub_gs: Any, grid_length: int, viz_group: str, phase_index: str
 ) -> tuple[list[str], list[float]]:
     """Visualize an analysis of the landscape model."""
     # prettify phase title:
-    phase_i = int(phase_str.split("_")[-1])
-    phase_title = f"Phase {phase_i + 1}"
+    phase_title = f"Phase {phase_index}"
     match viz_group:
         case "maps":  # x0x1 -> y
             add_model_visualization(model, grid_length)
@@ -221,7 +221,7 @@ def visualize_nd(
                     else:
                         ax.set_yticks([])
                         ax.set_ylabel("")
-                    ax.set_ylim(0, 1)
+                    ax.set_ylim(0, Y_SCALED)
                     label_y = False
 
             ax = fig.add_subplot(gs[0, :])
@@ -317,7 +317,7 @@ def viz_single_x0x1y(
         y_ticks = [model.y_info.tick_formatter(x, None) for x in TICK_POS_RETURN]
         ax.set_zticks(TICK_POS_RETURN, y_ticks, fontsize=TICK_FSIZE)
         ax.set_zlabel(y_col_name, labelpad=LABELPAD, fontsize=LABEL_FSIZE)
-        ax.set_zlim3d(0, 1)
+        ax.set_zlim3d(0, Y_SCALED)
     else:
         if label_x0:
             x0_ticks = [model.get_dim_info(x0).tick_formatter(x, None) for x in TICK_POS]

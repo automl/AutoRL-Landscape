@@ -1,6 +1,7 @@
 from typing import Any
 
 from ast import literal_eval
+from warnings import warn
 
 import numpy as np
 from numpy.typing import NDArray
@@ -78,6 +79,9 @@ class LSModel(BaseEstimator):
         # scale y into [0, 1] interval:
         self.y = self.y_info.ls_to_unit(y)
         """(num_confs, samples_per_conf)"""
+
+        if np.any(np.isnan(self.y)):
+            warn("Performance data includes NaN's (crashed runs).")
 
         # just all the single evaluation values, not grouped (but still scaled to [0, 1] interval):
         self.x_samples = np.repeat(self.x, self.y.shape[1], axis=0)

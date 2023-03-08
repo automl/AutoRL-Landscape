@@ -1,4 +1,5 @@
 # @package _global_
+# This landscape produces configurations with very high `tau` values, making many runs crash. For testing.
 
 ls:
   type: Sobol
@@ -14,5 +15,5 @@ ls:
         upper: 0.9999
     - tau:
         type: Log
-        lower: 0.0001
-        upper: 0.1
+        lower: 0.5
+        upper: 0.8
