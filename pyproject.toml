@@ -35,6 +35,82 @@ testpaths = ["tests"] # path to the test directory
 #     "raise NotImplementedError",
 #     "if TYPE_CHECKING",
 # ] # These are lines to exclude from coverage
+[tool.ruff]
+select = [
+    "F",
+    "E",
+    "W",
+    "C90",
+    # "I", # use upstream isort for now, custom order not implemented
+    "N",
+    "D",
+    "UP",
+    "YTT",
+    "ANN",
+    "S",
+    "BLE",
+    "FBT",
+    "B",
+    "A",
+    "COM",
+    "C4",
+    "DTZ",
+    "T10",
+    "DJ",
+    "EM",
+    "EXE",
+    "ISC",
+    "ICN",
+    "G",
+    # "INP", # missing __init__.py files ok?
+    "PIE",
+    # "T20", # prints are ok
+    "PYI",
+    "PT",
+    "Q",
+    "RSE",
+    "RET",
+    "SLF",
+    "SIM",
+    "TID",
+    "TCH",
+    "ARG",
+    "PTH",
+    # "ERA", # commented code
+    "PD",
+    "PGH",
+    "PL",
+    "TRY",
+    "NPY",
+    "RUF",
+]
+ignore = [
+    "ANN101",  # self type annotation
+    "ANN102",  # cls type annotation
+    "ANN204",  # __init__ return type annotation
+    "COM812",  # Missing trailing comma (just follow black for this)
+    "D100",    # Missing docstring in public module
+    "D104",    # Missing docstring in public package
+    "D105",    # Missing docstring in magic method
+    "D107",    # Missing docstring in __init__ method
+    "PLR0913", # Too many arguments
+    "PLR0915", # Too many statements
+    "S101",    # assert
+]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.flake8]
+show-source = true
+max-line-length = 120
+extend-exclude = ["venv", ".venv", "build"]
+extend-ignore = [
+    "E203", # No whitespace before ':' in [x : y]
+    "E731", # No lambdas — too strict
+]
 
 [tool.black]
 target-version = ['py310']
