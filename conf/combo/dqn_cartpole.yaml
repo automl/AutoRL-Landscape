@@ -13,10 +13,6 @@ agent:
     policy: 'MlpPolicy'
     target_update_interval: 10
     train_freq: 256
-  zoo_optimal_ls:
-    learning_rate: 2.3e-3
-    neg_gamma: 0.01
-    # exploration_final_eps: 0.04
 eval:
   freq_eval_episodes: 10
   ls_eval_episodes: 20

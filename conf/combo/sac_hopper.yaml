@@ -9,9 +9,6 @@ agent:
     # use_sde: False
     learning_starts: 10000 # zoo
     buffer_size: 500000
-  zoo_optimal_ls:
-    learning_rate: 0.0003
-    neg_gamma: 0.01
 eval:
   freq_eval_episodes: 10
   ls_eval_episodes: 20
