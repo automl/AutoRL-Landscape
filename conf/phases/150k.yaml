@@ -2,8 +2,8 @@
 
 # Good setting for dqn_cartpole
 phases:
-  - 30000
-  - 60000
+  - 50000
   - 100000
+  - 150000
 eval:
   freq_eval_interval: 5000
