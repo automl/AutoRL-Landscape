@@ -7,7 +7,6 @@ phases:
 agent:
   hps:
     # WARNING these overwrite values from the combo configuration!
-    learning_starts: 100 # start training quite early
-    # train_freq: 64 # update policy much more often
+    learning_starts: 100 # would be 1000 for DQN, 10000 for SAC
 eval:
   freq_eval_interval: 50

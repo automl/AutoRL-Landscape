@@ -42,7 +42,6 @@ def train_agent(
     eval_env = make_env(conf.env.name, seed)
 
     # Setup wandb:
-    assert type(conf.wandb.experiment_tag) == str  # should hold?
     project_root = Path(__file__).parent.parent.parent
     run = wandb.init(
         project=conf.wandb.project,
@@ -64,7 +63,9 @@ def train_agent(
         dir=project_root,
         mode=conf.wandb.mode,
     )
-    assert run is not None
+    if run is None:
+        error_msg = "Wandb run not initialized correctly!"
+        raise Exception(error_msg)
 
     # Basic agent configuration:
     agent_kwargs = {
@@ -81,23 +82,19 @@ def train_agent(
 
     match conf.agent.name:
         case "DQN":
-            agent = CustomDQN
+            agent_class = CustomDQN
         case "SAC":
-            agent = CustomSAC
+            agent_class = CustomSAC
         case _:
-            error_msg = "Unknown agent"
+            error_msg = f"Unknown agent type {conf.agent.name}."
             raise ValueError(error_msg)
 
     # Agent Instantiation:
     if ancestor is None:
-        agent = agent(**agent_kwargs, **conf.agent.hps, **ls_conf)  # type: ignore
+        agent = agent_class(**agent_kwargs, **conf.agent.hps)
     else:
-        agent = agent.custom_load(save_path=ancestor, seed=seed)
-        # NOTE set hyperparameters:
-        # agent.learning_rate = ls_conf["learning_rate"]
-        # agent.gamma = ls_conf["gamma"]
-        for hp_name, hp_val in ls_conf.items():
-            setattr(agent, hp_name, hp_val)
+        agent = agent_class.custom_load(save_path=ancestor, seed=seed)
+    agent.set_ls_conf(ls_conf, phase_index)
 
     landscape_eval_callback = LandscapeEvalCallback(
         conf,

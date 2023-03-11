@@ -1,6 +1,7 @@
-from typing import Iterable, TypeVar
+from typing import TypeVar
 
 import argparse
+from collections.abc import Iterable
 from itertools import zip_longest
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
 from autorl_landscape.run.phase import start_phases
 from autorl_landscape.util.data import read_wandb_csv, split_phases
-from autorl_landscape.util.download import download_data
+from autorl_landscape.util.download import download_data, get_all_tags
 from autorl_landscape.visualize import (
     FIGSIZES,
     LEGEND_FSIZE,
@@ -148,9 +149,6 @@ def main() -> None:
                         add_legend = False
                     case "graphs":
                         add_legend = False
-                    case _:
-                        parser.print_help()
-                        return
                 fig_file_part = None
                 if args.savefig:
                     if args.model in MODELS:
@@ -208,7 +206,7 @@ def plot_figure(
     if add_legend:
         # get unique labels in whole figure:
         foo = [a.get_legend_handles_labels() for a in fig.axes]
-        handles, labels = [sum(f, []) for f in _transpose(foo)]
+        handles, labels = (sum(f, []) for f in _transpose(foo))
         by_label = dict(zip(labels, handles))
         fig.legend(by_label.values(), by_label.keys(), loc="center right", fontsize=LEGEND_FSIZE)
 
@@ -220,8 +218,24 @@ def plot_figure(
 
 
 def _prepare_hydra(args: argparse.Namespace) -> DictConfig:
+    """Create the experiment configuration and do some validity checks."""
     hydra.initialize(config_path="../conf", version_base="1.1")
     conf = hydra.compose("config", overrides=args.overrides)
+
+    # check whether given tag is unused (to not mess up other experiments):
+    if conf.wandb.mode == "disabled":  # unused configuration options in debug mode
+        conf.wandb.project = None
+        conf.wandb.entity = None
+    else:
+        tags = get_all_tags(conf.wandb.entity, conf.wandb.project)
+        tags.remove("debug")
+        if not isinstance(conf.wandb.experiment_tag, str):
+            error_msg = "conf.wandb.experiment_tag needs to be str!"
+            raise ValueError(error_msg)
+        if conf.wandb.experiment_tag in tags:
+            error_msg = f"Use a unique experiment tag for new experiments! Used: {tags}"
+            raise ValueError(error_msg)
+
     print(OmegaConf.to_yaml(conf))
     return conf
 

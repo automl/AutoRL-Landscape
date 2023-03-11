@@ -96,7 +96,6 @@ ignore = [
     "E731",    # allow lambdas
     "PLR0913", # Too many arguments
     "PLR0915", # Too many statements
-    "S101",    # assert
 ]
 line-length = 120
 target-version = "py310"

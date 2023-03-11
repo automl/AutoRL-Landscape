@@ -37,11 +37,11 @@ class LandscapeEvalCallback(BaseCallback):
         ls_model_save_path: str,
         run: Run | RunDisabled,
         agent_seed: int,
-        ls_conf: dict[str, Any],
+        ls_spec: dict[str, Any],
     ):
         super().__init__(verbose=1)
         self.eval_env = eval_env
-        self.ls_conf = ls_conf
+        self.ls_spec = ls_spec
         self.crashed_at: int | None = None
 
         # self.freq_eval_episodes = conf.eval.freq_eval_episodes
@@ -85,6 +85,32 @@ class LandscapeEvalCallback(BaseCallback):
         self.max_ep_length = conf.viz.max_ep_length
         self.hist_bins = conf.viz.hist_bins + 1  # internally used for np.linspace, so one more is needed
 
+    def _on_training_start(self) -> None:
+        print(f"{self.run.id=} {self.run.name=}")
+        # print("num_timesteps new_obs rewards dones sum(replay_buffer) sum(q_net) sum(q_net_target) exploration_rate")
+
+    def _on_step(self) -> bool:
+        """Stop training when all evaluations have been done."""
+        # with np.printoptions(precision=4, linewidth=500, suppress=True):
+        #     print(
+        #         "{} {} {} {} {}".format(
+        #             self.num_timesteps,
+        #             self.locals["new_obs"],
+        #             self.locals["rewards"],
+        #             self.locals["dones"],
+        #             self.locals["replay_buffer"].observations.sum(),
+        #             # sum([layer.sum() for layer in self.model.q_net.parameters()]),
+        #             # sum([layer.sum() for layer in self.model.q_net_target.parameters()]),
+        #             # self.model.exploration_rate,
+        #         )
+        #     )
+        if len(self.eval_schedule) > 0:
+            return True
+
+        # Stop training and potentially log crash time:
+        self.run.summary["meta.crashed_at"] = self.crashed_at
+        return False
+
     def after_update(self) -> None:
         """Triggered in the learning loop after a rollout, and after updates have been made to the policy.
 
@@ -112,73 +138,6 @@ class LandscapeEvalCallback(BaseCallback):
         self.crashed_at = self.num_timesteps
         self._on_step()
 
-    def _on_step(self) -> bool:
-        """Stop training when all evaluations have been done."""
-        # with np.printoptions(precision=4, linewidth=500, suppress=True):
-        #     print(
-        #         "{} {} {} {} {} {}".format(
-        #             self.num_timesteps,
-        #             self.locals["new_obs"],
-        #             self.locals["rewards"],
-        #             self.locals["dones"],
-        #             self.locals["replay_buffer"].observations.sum(),
-        #             self.locals["replay_buffer"].pos,
-        #             # sum([l.sum() for l in self.model.q_net.parameters()]),
-        #         )
-        #     )
-        if len(self.eval_schedule) > 0:
-            return True
-
-        # Stop training and potentially log crash time:
-        self.run.summary["meta.crashed_at"] = self.crashed_at
-        return False
-
-    def write_evaluation(self, eval_stages: list[tuple[EvalStage, NDArray[Any], NDArray[Any]]]) -> None:
-        """Save evaluation performance data from a given stage to wandb. Only run this once per `self.num_timesteps`.
-
-        Depending on what evaluation stages are handled, do different things:
-        FreqEval: Also log landscape hyperparameter values (useful for debugging)
-        LSEval: Save the data that will make up the landscape dataset, and note the exact time when this stage happens.
-        FinalEval: Save the data that will make up (part of) the final dataset, and note the exact time when this stage
-        happens. Also save this data to `self.all_final_{returns,ep_lengths}` for choosing the best policy at the end of
-        the phase.
-
-        Args:
-            eval_stages: List of (eval_stage, stage_returns, stage_ep_lengths), i.e. stage meta info and actual
-            performance sample data.
-        """
-        # Add to current logger:
-        # self.run.log: logs time-dependent values to line plots
-        # self.run.summary: logs just once for a run, save raw data
-        log_dict: dict[str, Any] = {}
-        for eval_stage, stage_returns, stage_ep_lengths in eval_stages:
-            # Always log mean return and episode length:
-            log_dict[f"{eval_stage.log_name()}/mean_return"] = np.mean(stage_returns)
-            log_dict[f"{eval_stage.log_name()}/mean_ep_length"] = np.mean(stage_ep_lengths)
-
-            if isinstance(eval_stage, FreqEval):
-                # TODO may not work for DQN because of exploration rate stuff:
-                for hp_name in self.ls_conf:
-                    log_dict[f"freq_eval/{hp_name}"] = getattr(self.model, hp_name)
-
-            if isinstance(eval_stage, LSEval | FinalEval):
-                # NOTE summary data is the actual samples for the data set:
-                self.run.summary[f"{eval_stage.log_name()}/returns"] = stage_returns
-                self.run.summary[f"{eval_stage.log_name()}/ep_lengths"] = stage_ep_lengths
-                return_hist = np.histogram(stage_returns, bins=np.linspace(0, self.max_return, self.hist_bins))
-                ep_length_hist = np.histogram(stage_ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins))
-                log_dict[f"{eval_stage.log_name()}/return_hist"] = wandb.Histogram(np_histogram=return_hist)
-                log_dict[f"{eval_stage.log_name()}/ep_length_hist"] = wandb.Histogram(np_histogram=ep_length_hist)
-
-                self.run.summary[f"{eval_stage.log_name()}/happened_at"] = self.num_timesteps
-
-            if isinstance(eval_stage, FinalEval):
-                self.all_final_returns[eval_stage.i - 1] = stage_returns
-                self.all_final_ep_lengths[eval_stage.i - 1] = stage_ep_lengths
-
-        log_dict["time/total_timesteps"] = self.num_timesteps
-        self.run.log(log_dict)
-
     def evaluate_policy(self, eval_stages: set[EvalStage]) -> None:
         """Evaluate the policy (that is trained on some configuration with a seed).
 
@@ -191,9 +150,6 @@ class LandscapeEvalCallback(BaseCallback):
         """
         if len(eval_stages) == 0:
             return
-
-        assert self.logger is not None
-        # assert isinstance(self.model, CustomDQN) or isinstance(self.model, CustomSAC)
 
         # Sync training and eval env if there is VecNormalize
         if self.model.get_vec_normalize_env() is not None:
@@ -231,3 +187,48 @@ class LandscapeEvalCallback(BaseCallback):
                     print(f"Saving model checkpoint to {self.ls_model_save_path}")
                 self.model.custom_save(self.ls_model_save_path, seed=self.agent_seed)
         self.write_evaluation(eval_stages_data)
+
+    def write_evaluation(self, eval_stages: list[tuple[EvalStage, NDArray[Any], NDArray[Any]]]) -> None:
+        """Save evaluation performance data from a given stage to wandb. Only run this once per `self.num_timesteps`.
+
+        Depending on what evaluation stages are handled, do different things:
+        FreqEval: Also log landscape hyperparameter values (useful for debugging)
+        LSEval: Save the data that will make up the landscape dataset, and note the exact time when this stage happens.
+        FinalEval: Save the data that will make up (part of) the final dataset, and note the exact time when this stage
+        happens. Also save this data to `self.all_final_{returns,ep_lengths}` for choosing the best policy at the end of
+        the phase.
+
+        Args:
+            eval_stages: List of (eval_stage, stage_returns, stage_ep_lengths), i.e. stage meta info and actual
+            performance sample data.
+        """
+        # Add to current logger:
+        # self.run.log: logs time-dependent values to line plots
+        # self.run.summary: logs just once for a run, save raw data
+        log_dict: dict[str, Any] = {}
+        for eval_stage, stage_returns, stage_ep_lengths in eval_stages:
+            # Always log mean return and episode length:
+            log_dict[f"{eval_stage.log_name()}/mean_return"] = np.mean(stage_returns)
+            log_dict[f"{eval_stage.log_name()}/mean_ep_length"] = np.mean(stage_ep_lengths)
+
+            if isinstance(eval_stage, FreqEval):
+                for hp_name, hp_val in self.model.get_ls_conf(self.ls_spec).items():
+                    log_dict[f"freq_eval/{hp_name}"] = hp_val
+
+            if isinstance(eval_stage, LSEval | FinalEval):
+                # NOTE summary data is the actual samples for the data set:
+                self.run.summary[f"{eval_stage.log_name()}/returns"] = stage_returns
+                self.run.summary[f"{eval_stage.log_name()}/ep_lengths"] = stage_ep_lengths
+                return_hist = np.histogram(stage_returns, bins=np.linspace(0, self.max_return, self.hist_bins))
+                ep_length_hist = np.histogram(stage_ep_lengths, bins=np.linspace(0, self.max_ep_length, self.hist_bins))
+                log_dict[f"{eval_stage.log_name()}/return_hist"] = wandb.Histogram(np_histogram=return_hist)
+                log_dict[f"{eval_stage.log_name()}/ep_length_hist"] = wandb.Histogram(np_histogram=ep_length_hist)
+
+                self.run.summary[f"{eval_stage.log_name()}/happened_at"] = self.num_timesteps
+
+            if isinstance(eval_stage, FinalEval):
+                self.all_final_returns[eval_stage.i - 1] = stage_returns
+                self.all_final_ep_lengths[eval_stage.i - 1] = stage_ep_lengths
+
+        log_dict["time/total_timesteps"] = self.num_timesteps
+        self.run.log(log_dict)

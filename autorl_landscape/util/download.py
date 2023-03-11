@@ -1,5 +1,6 @@
-from typing import Any, Iterable
+from typing import Any
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import pandas as pd
@@ -44,7 +45,7 @@ def _flatten_dict(d: dict[Any, Any], parent_key: str = "", sep: str = ".") -> di
     return dict(items)
 
 
-def get_all_tags(entity_name: str, project_name: str) -> Iterable[str]:
+def get_all_tags(entity_name: str, project_name: str) -> set[str]:
     """Query the wandb api for already used tags in the project."""
     api = wandb.Api()
 

@@ -11,6 +11,24 @@
         "data/kwie98_paper/test_crash_6.csv",
         "data/kwie98_paper/test_nocrash.csv"
       ]
+    },
+    {
+      "id": "combo",
+      "type": "pickString",
+      "description": "Combo: ",
+      "options": [
+        "dqn_cartpole",
+        "sac_hopper"
+      ]
+    },
+    {
+      "id": "ls",
+      "type": "pickString",
+      "description": "LS: ",
+      "options": [
+        "dqn",
+        "sac"
+      ]
     }
   ],
   "configurations": [
@@ -192,8 +210,8 @@
       "console": "integratedTerminal",
       "args": [
         "run",
-        "combo=sac_hopper",
-        "ls=sac",
+        "combo=${input:combo}",
+        "ls=${input:ls}",
         "slurm=debug",
         "phases=quick",
         "num_confs=1",

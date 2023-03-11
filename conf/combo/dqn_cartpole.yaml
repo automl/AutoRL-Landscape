@@ -23,6 +23,3 @@ viz: # visualization (e.g. in wandb)
   max_return: 500
   max_ep_length: 500
   hist_bins: 50
-# phases:
-#   - 30000
-#   - 60000

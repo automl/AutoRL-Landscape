@@ -1,6 +1,7 @@
-from typing import Any, Callable, Sequence, Tuple, TypeVar
+from typing import Any, TypeVar
 
 import time
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 
@@ -10,7 +11,6 @@ from omegaconf import DictConfig
 
 from autorl_landscape.run.compare import choose_best_policy, construct_2d
 from autorl_landscape.run.train import train_agent
-from autorl_landscape.util.download import get_all_tags
 from autorl_landscape.util.ls_sampler import construct_ls
 
 
@@ -20,28 +20,19 @@ def start_phases(conf: DictConfig) -> None:
     Args:
         conf: Hydra configuration
     """
-    # check whether given tag is unused (to not mess up other experiments):
-    tags = get_all_tags(conf.wandb.entity, conf.wandb.project)
-    assert type(conf.wandb.experiment_tag) == str
-    if conf.wandb.experiment_tag != "debug":
-        assert conf.wandb.experiment_tag not in tags, f"Use a unique experiment tag for new experiments! Used: {tags}"
-
     # remember starting time of this run for saving all phase data:
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    # TODO still not quite sure what this does but error message seems to be gone
-    # wandb.tensorboard.patch(root_logdir="...")
-
-    if len(conf.phases) > 1:
-        if conf.phases[-2] >= int(conf.phases[-1] * conf.eval.final_eval_start):
-            raise Exception(
-                "Last phase(s) too short! Not enough timesteps for all final evaluations.\n"
-                f"Last phase start: {conf.phases[-2]}.\n"
-                f"final_eval start: {conf.eval.final_eval_start}"
-            )
+    if len(conf.phases) > 1 and conf.phases[-2] >= int(conf.phases[-1] * conf.eval.final_eval_start):
+        raise Exception(
+            "Last phase(s) too short! Not enough timesteps for all final evaluations.\n"
+            f"Last phase start: {conf.phases[-2]}.\n"
+            f"final_eval start: {conf.eval.final_eval_start}"
+        )
 
     if not all(x < y for x, y in zip(conf.phases, conf.phases[1:])):
-        raise Exception(f"Phases need to be strictly increasing. Got: {conf.phases}")
+        error_msg = f"Phases need to be strictly increasing. Got: {conf.phases}"
+        raise ValueError(error_msg)
 
     ancestor = None
     for phase_index, _ in enumerate(conf.phases, start=1):
@@ -106,7 +97,7 @@ T = TypeVar("T")
 def schedule_runs(
     executor: submitit.AutoExecutor,
     fn: Callable[..., T],
-    fn_args: Sequence[Tuple[Any, ...]],  # [(x, y, z, ...)]
+    fn_args: Sequence[tuple[Any, ...]],  # [(x, y, z, ...)]
     num_parallel: int,
     polling_rate: float = 1.0,
 ) -> list[T]:
@@ -121,14 +112,14 @@ def schedule_runs(
     num_parallel : int
         How many jobs to have running at the same time.
 
-    Returns
-    -------
+    Returns:
     List
         The return values of all jobs.
     """
     if len(fn_args) == 0:
         return []
-    assert num_parallel > 0
+    if num_parallel < 1:
+        raise ValueError
     running_jobs: dict[int, submitit.Job[T]] = {}
     results: dict[int, Any] = {}
     next_job = 0  # index of the job to be started next
@@ -144,13 +135,18 @@ def schedule_runs(
                     del running_jobs[i]
 
             # Add new jobs:
-            assert len(running_jobs) <= num_parallel  # that's kind of the point
+            if len(running_jobs) > num_parallel:  # that's kind of the point
+                error_msg = "Too many running jobs!"
+                raise Exception(error_msg)
+
             # not too many at once, don't overflow index when close to done with all jobs:
             num_new_jobs = min(num_parallel - len(running_jobs), len(fn_args) - next_job)
             if num_new_jobs > 0:
                 new_tasks = fn_args[next_job : next_job + num_new_jobs]
                 new_jobs = executor.map_array(fn, *zip(*new_tasks))
-                assert len(new_jobs) == num_new_jobs
+                if len(new_jobs) != num_new_jobs:
+                    error_msg = "Did not get correct number of new jobs!"
+                    raise Exception(error_msg)
                 for i in range(num_new_jobs):
                     running_jobs[next_job + i] = new_jobs[i]
                 next_job += num_new_jobs

@@ -9,10 +9,10 @@ ls:
         upper: 0.1
     - gamma:
         type: FlippedLog
-        # type: Float
         lower: 0.8
         upper: 0.9999
     - tau:
         type: Log
         lower: 0.0001
         upper: 0.1
+
