@@ -228,7 +228,7 @@ def _prepare_hydra(args: argparse.Namespace) -> DictConfig:
         conf.wandb.entity = None
     else:
         tags = get_all_tags(conf.wandb.entity, conf.wandb.project)
-        tags.remove("debug")
+        tags = tags - {"debug"}
         if not isinstance(conf.wandb.experiment_tag, str):
             error_msg = "conf.wandb.experiment_tag needs to be str!"
             raise ValueError(error_msg)
