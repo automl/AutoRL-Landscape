@@ -71,6 +71,8 @@ class LSModel(BaseEstimator):
         """(num_confs, num_ls_dims). LS dimensions are sorted by name"""
         # all evaluations (y values) for a group (configuration):
         y = np.array(list(conf_groups[self.y_info.name].sum()), dtype=self.dtype)
+        # handle crashed runs by assigning 0 return:
+        y[np.isnan(y)] = 0
 
         # scale ls dims into [0, 1] interval:
         for i in range(len(self.dim_info)):
