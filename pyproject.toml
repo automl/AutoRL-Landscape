@@ -85,17 +85,18 @@ select = [
     "RUF",
 ]
 ignore = [
-    "ANN101",  # self type annotation
-    "ANN102",  # cls type annotation
-    "ANN204",  # __init__ return type annotation
-    "COM812",  # Missing trailing comma (just follow black for this)
-    "D100",    # Missing docstring in public module
-    "D104",    # Missing docstring in public package
-    "D105",    # Missing docstring in magic method
-    "D107",    # Missing docstring in __init__ method
-    "E731",    # allow lambdas
-    "PLR0913", # Too many arguments
-    "PLR0915", # Too many statements
+    "ANN101",  # self type annotation not needed
+    "ANN102",  # cls type annotation not needed
+    "ANN204",  # __init__ return type annotation not needed
+    "COM812",  # Missing trailing comma is ok(just follow black for this)
+    "D100",    # Missing docstring in public module is ok
+    "D104",    # Missing docstring in public package is ok
+    "D105",    # Missing docstring in magic method is ok
+    "D107",    # Missing docstring in __init__ method is ok
+    "E731",    # lambdas are ok
+    "PLR0913", # Too many arguments are ok
+    "PLR0915", # Too many statements are ok
+    "S101", # asserts are ok
 ]
 line-length = 120
 target-version = "py310"

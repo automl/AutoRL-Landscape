@@ -2,10 +2,12 @@ from typing import Any
 
 from datetime import datetime
 from enum import Enum, auto
+from itertools import product
 from pathlib import Path
 
 import hydra
 import numpy as np
+import pytest
 from numpy.typing import NDArray
 from omegaconf import DictConfig
 
@@ -88,78 +90,77 @@ def compose_experiment_config(experiment_name: str) -> DictConfig:
     return conf
 
 
-def test_same_conf() -> None:
+@pytest.mark.parametrize(("experiment_name", "conf_type"), product(EXPERIMENTS, ConfType))
+def test_same_conf(experiment_name: str, conf_type: ConfType) -> None:
     """If agents are configured the same, they should produce the same results."""
-    for experiment_name in EXPERIMENTS:
-        conf = compose_experiment_config(experiment_name)
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_1"
+    conf = compose_experiment_config(experiment_name)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_1"
 
-        for conf_type in (ConfType.LOWER, ConfType.ZOO_OPTIMAL):
-            ls_conf = build_ls_conf(conf, experiment_name, conf_type)
+    ls_conf = build_ls_conf(conf, experiment_name, conf_type)
 
-            # Original agent (ancestor):
-            _, run_id, orig_res = train_agent_(conf, 1, timestamp, None, ls_conf, phase_path)
-            ancestor = Path(f"{phase_path}/agents/{run_id}").resolve().relative_to(Path.cwd())
+    # Original agent (ancestor):
+    _, run_id, orig_res = train_agent_(conf, 1, timestamp, None, ls_conf, phase_path)
+    ancestor = Path(f"{phase_path}/agents/{run_id}").resolve().relative_to(Path.cwd())
 
-            # Loaded agent:
-            _, _, loaded_res = train_agent_(conf, 2, timestamp, ancestor, ls_conf, phase_path)
-            print(f"{experiment_name=}")
-            print(f"{conf_type=}")
-            assert np.all(orig_res == loaded_res)
+    # Loaded agent:
+    _, _, loaded_res = train_agent_(conf, 2, timestamp, ancestor, ls_conf, phase_path)
+    print(f"{experiment_name=}")
+    print(f"{conf_type=}")
+    assert np.all(orig_res == loaded_res)
 
 
-def test_slightly_different() -> None:
+@pytest.mark.parametrize("experiment_name", EXPERIMENTS)
+def test_slightly_different(experiment_name: str) -> None:
     """If agents are configured the same exept for one hyperparameter, they should produce different results."""
-    for experiment_name in EXPERIMENTS:
-        conf = compose_experiment_config(experiment_name)
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        phase_path = f"tests/phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_1"
+    conf = compose_experiment_config(experiment_name)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    phase_path = f"tests/phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_1"
 
+    ls_conf = build_ls_conf(conf, experiment_name, ConfType.LOWER)
+
+    # Original agent (ancestor):
+    _, run_id, orig_res = train_agent_(conf, 1, timestamp, None, ls_conf, phase_path)
+    ancestor = Path(f"{phase_path}/agents/{run_id}").resolve().relative_to(Path.cwd())
+
+    dims = [(next(iter(d)), d[next(iter(d))]) for d in conf.ls.dims]
+    for dim_name, dim_spec in dims:
+        # Make a slightly different configuration:
         ls_conf = build_ls_conf(conf, experiment_name, ConfType.LOWER)
+        ls_conf[dim_name] = dim_spec.upper
+        # Loaded agent:
+        _, _, loaded_res = train_agent_(conf, 2, timestamp, ancestor, ls_conf, phase_path)
 
-        # Original agent (ancestor):
-        _, run_id, orig_res = train_agent_(conf, 1, timestamp, None, ls_conf, phase_path)
-        ancestor = Path(f"{phase_path}/agents/{run_id}").resolve().relative_to(Path.cwd())
-
-        dims = [(next(iter(d)), d[next(iter(d))]) for d in conf.ls.dims]
-        for dim_name, dim_spec in dims:
-            # Make a slightly different configuration:
-            ls_conf = build_ls_conf(conf, experiment_name, ConfType.LOWER)
-            ls_conf[dim_name] = dim_spec.upper
-            # Loaded agent:
-            _, _, loaded_res = train_agent_(conf, 2, timestamp, ancestor, ls_conf, phase_path)
-
-            print(f"{experiment_name=}")
-            print(f"{dim_name=}")
-            assert not np.all(orig_res == loaded_res)
+        print(f"{experiment_name=}")
+        print(f"{dim_name=}")
+        assert not np.all(orig_res == loaded_res)
 
 
-def test_zoo_vs_defunct_confs() -> None:
+@pytest.mark.parametrize("experiment_name", EXPERIMENTS)
+def test_zoo_vs_defunct_confs(experiment_name: str) -> None:
     """Test hyperparameter stuff by checking if defunct configurations yield worse results than good ones."""
-    for experiment_name in EXPERIMENTS:
-        conf = compose_experiment_config(experiment_name)
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        phase_path = f"tests/phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_1"
+    conf = compose_experiment_config(experiment_name)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    phase_path = f"tests/phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_1"
 
-        ls_conf_zoo = build_ls_conf(conf, experiment_name, ConfType.ZOO_OPTIMAL)
+    ls_conf_zoo = build_ls_conf(conf, experiment_name, ConfType.ZOO_OPTIMAL)
 
-        # Original agent (ancestor):
-        _, _, good_res = train_agent_(conf, 1, timestamp, None, ls_conf_zoo, phase_path)
+    # Original agent (ancestor):
+    _, _, good_res = train_agent_(conf, 1, timestamp, None, ls_conf_zoo, phase_path)
 
-        dims = [(next(iter(d)), d[next(iter(d))]) for d in conf.ls.dims]
-        for dim_name, _ in dims:
-            # Make a slightly different configuration that should be defunct:
-            ls_conf_defunct = build_ls_conf(conf, experiment_name, ConfType.ZOO_OPTIMAL)
-            ls_conf_defunct[dim_name] = DEFUNCT_CONFS[experiment_name][dim_name]
-            # Loaded agent:
-            _, _, bad_res = train_agent_(conf, 1, timestamp, None, ls_conf_defunct, phase_path)
+    dims = [(next(iter(d)), d[next(iter(d))]) for d in conf.ls.dims]
+    for dim_name, _ in dims:
+        # Make a slightly different configuration that should be defunct:
+        ls_conf_defunct = build_ls_conf(conf, experiment_name, ConfType.ZOO_OPTIMAL)
+        ls_conf_defunct[dim_name] = DEFUNCT_CONFS[experiment_name][dim_name]
+        # Loaded agent:
+        _, _, bad_res = train_agent_(conf, 1, timestamp, None, ls_conf_defunct, phase_path)
 
-            print(f"{experiment_name=}")
-            print(f"{dim_name=}")
+        print(f"{experiment_name=}")
+        print(f"{dim_name=}")
 
-            if np.any(np.isnan(good_res)) or np.any(np.isnan(bad_res)):
-                print("FOUND NAN")
-                assert np.sum(np.isnan(good_res)) < np.sum(np.isnan(bad_res))
-            else:
-                assert np.sum(good_res) > np.sum(bad_res)
+        if np.any(np.isnan(good_res)) or np.any(np.isnan(bad_res)):
+            print("FOUND NAN")
+            assert np.sum(np.isnan(good_res)) < np.sum(np.isnan(bad_res))
+        else:
+            assert np.sum(good_res) > np.sum(bad_res)
