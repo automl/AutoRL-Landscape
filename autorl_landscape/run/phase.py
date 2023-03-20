@@ -64,6 +64,9 @@ def resume_phases(incomplete_data: DataFrame) -> None:
     # We need a list like ["slurm.cluster=nan", ...]:
     conf_list = [f"{k[len(CONF_DICT_KEY_START):]}={list(v.values())[0]}" for k, v in conf_dict_scuffed.items()]
     conf = OmegaConf.from_dotlist(conf_list)
+    # Fix None becoming "nan":
+    if conf.slurm.cluster == "nan":
+        conf.slurm.cluster = None
 
     resume_tag = f"resume_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     match conf.wandb.experiment_tag:
