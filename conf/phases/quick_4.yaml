@@ -1,0 +1,14 @@
+# @package _global_
+
+# For quickly checking whether stuff works
+phases:
+  - 500
+  - 1000
+  - 1500
+  - 2000
+agent:
+  hps:
+    # WARNING these overwrite values from the combo configuration!
+    learning_starts: 100 # would be 1000 for DQN, 10000 for SAC
+eval:
+  freq_eval_interval: 50

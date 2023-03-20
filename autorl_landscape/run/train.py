@@ -1,5 +1,6 @@
 from typing import Any
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import wandb
@@ -41,11 +42,22 @@ def train_agent(
     env = make_env(conf.env.name, seed)
     eval_env = make_env(conf.env.name, seed)
 
+    # Quick fix to accept both single tags and lists of tags (because of resume):
+    experiment_tags: list[str] = []
+    match conf.wandb.experiment_tag:
+        case str():
+            experiment_tags = [conf.wandb.experiment_tag]
+        case Iterable():
+            experiment_tags = list(conf.wandb.experiment_tag)
+        case _:
+            msg = f"Received unexpected {conf.wandb.experiment_tag=}"
+            raise ValueError(msg)
+
     # Setup wandb:
     project_root = Path(__file__).parent.parent.parent
     run = wandb.init(
         project=conf.wandb.project,
-        tags=[conf.wandb.experiment_tag],
+        tags=experiment_tags,
         config={
             "ls": ls_conf,
             "conf": OmegaConf.to_object(conf),

@@ -1,17 +1,24 @@
 from typing import Any, TypeVar
 
+import pickle
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import submitit
 import tqdm
-from omegaconf import DictConfig
+from numpy.typing import NDArray
+from omegaconf import DictConfig, OmegaConf
+from pandas import DataFrame
 
 from autorl_landscape.run.compare import choose_best_policy, construct_2d
 from autorl_landscape.run.train import train_agent
+from autorl_landscape.util.data import split_phases
 from autorl_landscape.util.ls_sampler import construct_ls
+
+CONF_DICT_KEY_START = "conf."
 
 
 def start_phases(conf: DictConfig) -> None:
@@ -39,6 +46,105 @@ def start_phases(conf: DictConfig) -> None:
         phase(conf, phase_index, timestamp, ancestor)
         ancestor = (
             Path(f"phase_results/{conf.agent.name}/{conf.env.name}/{timestamp}/phase_{phase_index}/best_agent")
+            .resolve()
+            .relative_to(Path.cwd())
+        )
+
+
+def resume_phases(incomplete_data: DataFrame) -> None:
+    """Try to complete a crashed experiment from local and downloaded wandb data.
+
+    - extract the used DictConfig from the data
+    - figure out the last phase that is complete in the csv
+    """
+    # Construct the hydra config:
+    keys = [col for col in incomplete_data.columns if col.startswith(CONF_DICT_KEY_START)]
+    # This has keys like "conf.slurm.cluster" and values like {"hqa3bj2a": nan}:
+    conf_dict_scuffed: dict[str, Any] = incomplete_data[0:1][keys].to_dict()
+    # We need a list like ["slurm.cluster=nan", ...]:
+    conf_list = [f"{k[len(CONF_DICT_KEY_START):]}={list(v.values())[0]}" for k, v in conf_dict_scuffed.items()]
+    conf = OmegaConf.from_dotlist(conf_list)
+
+    resume_tag = f"resume_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    match conf.wandb.experiment_tag:
+        case str(tag):
+            conf.wandb.experiment_tag = [tag, resume_tag]
+        case Iterable(tags):
+            conf.wandb.experiment_tag = [*tags, resume_tag]
+        case _:
+            msg = f"Received unexpected {conf.wandb.experiment_tag=}"
+            raise ValueError(msg)
+
+    # Check last phase in the data, whether all runs are there:
+    last_complete_phase = None
+    last_complete_phase_ids = None
+    phase_indices = sorted(incomplete_data["meta.phase"].unique(), reverse=True)
+    runs_per_phase = conf.num_confs * conf.num_seeds
+    for phase_index in phase_indices:
+        phase_data, _ = split_phases(incomplete_data, phase_index)
+        if len(phase_data) == runs_per_phase:
+            last_complete_phase = phase_index
+            last_complete_phase_ids = phase_data.index
+            break
+
+    if last_complete_phase is None or last_complete_phase_ids is None:
+        error_msg = "Data does not include a complete phase."
+        raise ValueError(error_msg)
+
+    # Extract original timestamp from the data:
+    original_timestamps = incomplete_data["meta.timestamp"].unique()
+    if len(original_timestamps) != 1 or not isinstance(original_timestamps[0], str):
+        error_msg = f"Data has incorrect timestamp: {original_timestamps}"
+        raise ValueError(error_msg)
+    original_timestamp: str = original_timestamps[0]
+
+    phase_path = f"phase_results/{conf.agent.name}/{conf.env.name}/{original_timestamp}/phase_{last_complete_phase}"
+    if not (Path(phase_path) / Path("best_agent")).exists():
+        print(f"Did not find {phase_path}/best_agent symlink. Trying to select best config from submitit results...")
+        ids_to_results: dict[str, tuple[int, NDArray[Any]] | None] = {
+            wandb_id: None for wandb_id in last_complete_phase_ids
+        }
+
+        pathlist = (Path(__file__).parent.parent.parent / Path("submitit")).glob("*_result.pkl")  # Yes this is ugly
+        for path in pathlist:
+            with path.open("rb") as f:
+                try:
+                    _, (conf_index, wandb_id, arr) = pickle.load(f)  # FIXME
+                except ValueError:  # could not unpack tuple
+                    continue
+                if not isinstance(wandb_id, str):
+                    continue  # unusable file
+                if wandb_id in ids_to_results:
+                    if not (isinstance(conf_index, int) and isinstance(arr, np.ndarray)):
+                        msg = f"results for {conf_index=} {wandb_id=} ({path=}) are incorrect: {arr} {arr.shape}"
+                        raise ValueError(msg)
+                    ids_to_results[wandb_id] = (conf_index, arr)
+
+        missing_ids = [wandb_id for wandb_id, result in ids_to_results.items() if result is None]
+        if len(missing_ids) > 0:
+            error_msg = f"Could not find results for ids {missing_ids}"
+            raise ValueError(error_msg)
+
+        # Like in phase():
+        results = [(conf_index, wandb_id, arr) for wandb_id, (conf_index, arr) in ids_to_results.items()]
+        run_ids, final_returns = construct_2d(*zip(*results))
+        choose_best_policy(
+            run_ids,
+            final_returns,
+            save=phase_path,
+        )
+    else:
+        print(f"Found {phase_path}/best_agent")
+
+    # Like in start_phases():
+    ancestor = Path(f"{phase_path}/best_agent").resolve().relative_to(Path.cwd())
+    for phase_index, _ in enumerate(conf.phases, start=1):
+        if phase_index <= last_complete_phase:
+            print(f"Skipping phase {phase_index}")
+            continue
+        phase(conf, phase_index, original_timestamp, ancestor)
+        ancestor = (
+            Path(f"phase_results/{conf.agent.name}/{conf.env.name}/{original_timestamp}/phase_{phase_index}/best_agent")
             .resolve()
             .relative_to(Path.cwd())
         )

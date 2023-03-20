@@ -6,10 +6,9 @@
       "type": "pickString",
       "description": "Data file for run: ",
       "options": [
-        "data/kwie98_paper/test_crash_4.csv",
-        "data/kwie98_paper/test_crash_5.csv",
-        "data/kwie98_paper/test_crash_6.csv",
-        "data/kwie98_paper/test_nocrash.csv"
+        "data/kwie98_paper/dqn_ls3_tnt_3.csv",
+        "data/kwie98_lls/sac_hopper.csv",
+        "data/kwie98_paper/test_resume_1.csv"
       ]
     },
     {
@@ -217,6 +216,18 @@
         "num_confs=1",
         "num_seeds=1",
         "wandb.experiment_tag=debug"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases resume",
+      "type": "python",
+      "request": "launch",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "resume",
+        "${workspaceFolder}/${input:dataFile}"
       ],
       "justMyCode": false
     },

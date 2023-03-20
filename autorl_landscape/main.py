@@ -14,7 +14,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
-from autorl_landscape.run.phase import start_phases
+from autorl_landscape.run.phase import resume_phases, start_phases
 from autorl_landscape.util.data import read_wandb_csv, split_phases
 from autorl_landscape.util.download import download_data, get_all_tags
 from autorl_landscape.visualize import (
@@ -46,6 +46,11 @@ def main() -> None:
     parser_run = subparsers.add_parser("run", help="run an experiment using the hydra config in conf/")
     parser_run.add_argument("overrides", nargs="*", help="Hydra overrides")
     parser_run.set_defaults(func="run")
+
+    # phases resume ...
+    parser_resume = subparsers.add_parser("resume", help="try to salvage a crashed experiment")
+    parser_resume.add_argument("data", help="csv file containing data for at least one complete phase")
+    parser_resume.set_defaults(func="resume")
 
     # phases viz ...
     parser_viz = subparsers.add_parser("viz", help="visualize different views of a hyperparameter landscape dataset")
@@ -112,6 +117,8 @@ def main() -> None:
     match args.func:
         case "run":
             start_phases(_prepare_hydra(args))
+        case "resume":
+            resume_phases(read_wandb_csv(Path(args.data)))
         case "viz_samples":
             visualize_data_samples(args.data)
         case "viz_spec":
