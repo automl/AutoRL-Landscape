@@ -67,6 +67,8 @@ def resume_phases(incomplete_data: DataFrame) -> None:
     # Fix None becoming "nan":
     if conf.slurm.cluster == "nan":
         conf.slurm.cluster = None
+    # Request more RAM since runs might be crashing because of this?
+    conf.slurm.update_parameters.mem_gb = 4
 
     resume_tag = f"resume_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
     match conf.wandb.experiment_tag:
