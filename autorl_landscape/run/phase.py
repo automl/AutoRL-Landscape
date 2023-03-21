@@ -240,6 +240,8 @@ def schedule_runs(
             # Check running jobs for finished jobs, then save their results:
             for i, job in list(running_jobs.items()):
                 if job.done():
+                    # Wait longer for finished jobs to write their results:
+                    job._results_timeout_s = 120
                     results[i] = job.result()
                     prog_bar.n = len(results)
                     prog_bar.refresh()
