@@ -12,6 +12,6 @@ ls:
         lower: 0.8
         upper: 0.9999
     - exploration_final_eps:
-        type: Log
+        type: Float
         lower: 0.01
         upper: 1
