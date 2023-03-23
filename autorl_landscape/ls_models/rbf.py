@@ -40,3 +40,8 @@ class RBFInterpolatorLSModel(LSModel):
         assert x.shape[-1] == len(self.dim_info)
         y = self.ci_lower_model(x.reshape(-1, len(self.dim_info))).reshape(*x.shape[0:-1], 1)
         return self._ci_scale(x, y, assimilate_factor)
+
+    @staticmethod
+    def get_model_name() -> str:
+        """Return name of this model, for naming files and the like."""
+        return "ilm_"

@@ -47,3 +47,8 @@ class TripleGPModel(LSModel):
         """Return the lower CI estimate of y at the position(s) x."""
         f_mean, _ = self.lower_model.predict_f(x)
         return self._ci_scale(x, f_mean.numpy(), assimilate_factor)
+
+    @staticmethod
+    def get_model_name() -> str:
+        """Return name of this model, for naming files and the like."""
+        return "igpr_"

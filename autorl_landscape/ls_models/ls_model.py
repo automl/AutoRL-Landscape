@@ -118,6 +118,11 @@ class LSModel(BaseEstimator):
         """Get the list of hyperparameter landscape dimension names."""
         return [di.name for di in self.dim_info]
 
+    @staticmethod
+    def get_model_name() -> str:
+        """Return name of this model, for naming files and the like."""
+        return ""
+
     def get_dim_info(self, name: str) -> LSDimension | None:
         """Return matching `DimInfo` to a passed name (can be y_info of any dim_info)."""
         if name == self.y_info.name:
