@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 from scipy.spatial import Delaunay
 
 from autorl_landscape.ls_models.ls_model import LSModel
+from autorl_landscape.util.grid_space import grid_space_nd
 
 
 def find_biggest_nonconcave(model: LSModel, grid_length: int = 51) -> float:
@@ -57,11 +58,8 @@ def _binary_search(low: int, high: int, predicate: Callable[[float], bool]) -> f
 
 def reject_concavity(model: LSModel, assimilate_factor: float, grid_length: int = 51) -> bool:
     """Akin to Pushak and Hoos, 2022."""
-    grid_x0, grid_x1 = np.meshgrid(np.linspace(0, 1, num=grid_length), np.linspace(0, 1, num=grid_length))
-    # TODO meshgrid N-dims
-    grid_x0 = grid_x0.flatten()
-    grid_x1 = grid_x1.flatten()
-    x = np.stack((grid_x0, grid_x1), axis=1)  # (-1, num_ls_dims)
+    num_dims = len(model.dim_info)
+    x = grid_space_nd(num_dims, grid_length).reshape(-1, num_dims)
 
     y_lower = model.get_lower(x, assimilate_factor).reshape(-1, 1)
     y_upper = model.get_upper(x, assimilate_factor).reshape(-1, 1)

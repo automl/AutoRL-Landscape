@@ -222,7 +222,7 @@ def main() -> None:
                         model.fit()
                     case _:
                         pass
-                print(f"{phase_index}:")
+                print(f"Phase {phase_index}:")
                 smallest_rejecting_ci = find_biggest_nonconcave(model, args.grid_length)
                 print(f"Concavity can be rejected for squeezes stronger than k_{{max}} = {smallest_rejecting_ci:.2f}")
         case "dl":
