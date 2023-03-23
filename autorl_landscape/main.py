@@ -1,6 +1,7 @@
 from typing import TypeVar
 
 import argparse
+from ast import literal_eval
 from collections.abc import Iterable
 from itertools import zip_longest
 from pathlib import Path
@@ -21,17 +22,28 @@ from autorl_landscape.visualize import (
     FIGSIZES,
     LEGEND_FSIZE,
     TITLE_FSIZE,
+    visualize_cherry_picks,
     visualize_data_samples,
     visualize_landscape_spec,
     visualize_nd,
 )
 
-# ENTITY = "kwie98"
 DEFAULT_GRID_LENGTH = 51
-MODELS = ["hsgp", "rbf", "triple-gp", "mock"]
+MODELS = ["ilm", "igpr"]
 VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
 
 T = TypeVar("T")
+
+
+def _add_viz_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add --savefig and --cherry-pick."""
+    parser.add_argument("--savefig", action="store_true", dest="savefig", help="Save figures instead of showing them")
+    parser.add_argument(
+        "--cherrypick",
+        dest="cherry_picks",
+        help='"[(x, y), ...]" positions of plots to pick. Specify as python list[tuple[int, int]]. Needs to be quoted',
+        default=None,
+    )
 
 
 def main() -> None:
@@ -40,7 +52,6 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="phases")
     subparsers = parser.add_subparsers()
     subparsers.required = True
-    parser.add_argument("--savefig", action="store_true", dest="savefig", help="Save figures instead of showing them")
 
     # phases run ...
     parser_run = subparsers.add_parser("run", help="run an experiment using the hydra config in conf/")
@@ -70,6 +81,7 @@ def main() -> None:
         "spec", help="Visualize configurations sampled for a specific configuration"
     )
     parser_viz_spec.add_argument("overrides", nargs="*", help="Hydra overrides")
+    _add_viz_arguments(parser_viz_spec)
     parser_viz_spec.set_defaults(func="viz_spec")
 
     # phases ana ...
@@ -81,28 +93,32 @@ def main() -> None:
 
     # phases ana maps ... (surfaces and peaks of surfaces)
     parser_ana_maps = ana_subparsers.add_parser("maps", help="")
-    parser_ana_maps.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_maps.add_argument("--model", type=str, choices=MODELS, required=True)
+    parser_ana_maps.add_argument("data", help="csv file containing data of all runs")
+    parser_ana_maps.add_argument("model", type=str, choices=MODELS)
     parser_ana_maps.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    _add_viz_arguments(parser_ana_maps)
     parser_ana_maps.set_defaults(func="maps")
 
     # phases ana modalities ...
     parser_ana_modalities = ana_subparsers.add_parser("modalities", help="")
-    parser_ana_modalities.add_argument("--data", help="csv file containing data of all runs", required=True)
+    parser_ana_modalities.add_argument("data", help="csv file containing data of all runs")
     parser_ana_modalities.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    _add_viz_arguments(parser_ana_modalities)
     parser_ana_modalities.set_defaults(func="modalities", model=None)
 
     # phases ana concavity ...
     parser_ana_concavity = ana_subparsers.add_parser("concavity", help="")
-    parser_ana_concavity.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_concavity.add_argument("--model", type=str, choices=MODELS, required=True)
+    parser_ana_concavity.add_argument("data", help="csv file containing data of all runs")
+    parser_ana_concavity.add_argument("model", type=str, choices=MODELS)
     parser_ana_concavity.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    _add_viz_arguments(parser_ana_concavity)
     parser_ana_concavity.set_defaults(func="concavity", model=None)
 
     # phases ana graphs ...
     parser_ana_graphs = ana_subparsers.add_parser("graphs", help="")
-    parser_ana_graphs.add_argument("--data", help="csv file containing data of all runs", required=True)
-    parser_ana_graphs.add_argument("--model", type=str, choices=MODELS, required=True)
+    parser_ana_graphs.add_argument("data", help="csv file containing data of all runs")
+    parser_ana_graphs.add_argument("model", type=str, choices=MODELS)
+    _add_viz_arguments(parser_ana_graphs)
     parser_ana_graphs.set_defaults(func="graphs", grid_length=DEFAULT_GRID_LENGTH, model=None)
 
     # phases dl ...
@@ -134,12 +150,25 @@ def main() -> None:
 
             fig = plt.figure(figsize=FIGSIZES[args.func])
             global_gs = fig.add_gridspec(1, 1 + len(phase_indices))
+            if args.cherry_picks is not None:
+                # Do some type checking at runtime:
+                args.cherry_picks: list[tuple[int, int]] = literal_eval(args.cherry_picks)
+                msg = "Cherry picks could not be parsed, needs to be list[tuple[int, int]]."
+                if not isinstance(args.cherry_picks, list):
+                    raise TypeError(msg)
+                for tup in args.cherry_picks:
+                    if not (isinstance(tup, tuple) and len(tup) == 2):
+                        raise TypeError(msg)
+                    x, y = tup
+                    if not (isinstance(x, int) and isinstance(y, int)):
+                        raise TypeError(msg)
+
             for phase_index, sub_gs in zip(phase_indices, [gs for gs in global_gs][1:]):
                 phase_data, best_conf = split_phases(df, phase_index)
                 match args.model:
-                    case "rbf":
+                    case "ilm":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
-                    case "triple-gp":
+                    case "igpr":
                         from autorl_landscape.ls_models.triple_gp import TripleGPModel
 
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
@@ -148,7 +177,7 @@ def main() -> None:
                         model = LSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
                 match args.func:
                     case "maps":
-                        if not isinstance(model, RBFInterpolatorLSModel):
+                        if not isinstance(model, RBFInterpolatorLSModel):  # adding peaks for this model looks too noisy
                             find_peaks_model(model, len(model.dim_info), args.grid_length, bounds=(0, 1))
                         add_legend = True
                     case "modalities":
@@ -156,16 +185,25 @@ def main() -> None:
                         add_legend = False
                     case "graphs":
                         add_legend = False
-                fig_file_part = None
+
+                save_base = None
                 if args.savefig:
                     if args.model in MODELS:
-                        fig_file_part = f"images/ana-{args.func}-{args.model}"
+                        save_base = f"figures/{file.stem}/{model.get_model_name()}{args.func}"
                     else:
-                        fig_file_part = f"images/ana-{args.func}"
-                row_titles, height_ratios = visualize_nd(
-                    model, fig, sub_gs, args.grid_length, viz_group=args.func, phase_index=phase_index
-                )
-            plot_figure(fig, global_gs, fig_file_part, row_titles, height_ratios, add_legend)
+                        save_base = f"figures/{file.stem}/{args.func}"
+
+                if args.cherry_picks is None:
+                    row_titles, height_ratios = visualize_nd(
+                        model, fig, sub_gs, args.grid_length, viz_group=args.func, phase_index=phase_index
+                    )
+                else:
+                    visualize_cherry_picks(
+                        model, args.cherry_picks, args.grid_length, args.func, phase_index, Path("figures") / file.stem
+                    )
+            if args.cherry_picks is None:
+                plot_figure(fig, global_gs, save_base, row_titles, height_ratios, add_legend)
+
         case "concavity":
             from autorl_landscape.analyze.concavity import find_biggest_nonconcave
 
@@ -175,9 +213,9 @@ def main() -> None:
             for phase_index in phase_indices:
                 phase_data, _ = split_phases(df, phase_index)
                 match args.model:
-                    case "rbf":
+                    case "ilm":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns")
-                    case "triple-gp":
+                    case "igpr":
                         from autorl_landscape.ls_models.triple_gp import TripleGPModel
 
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns")

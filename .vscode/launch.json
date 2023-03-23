@@ -46,58 +46,6 @@
       "justMyCode": false
     },
     {
-      "name": "phases viz data",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "data",
-        "${workspaceFolder}/${input:dataFile}"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz hsgp",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "gp",
-        "${workspaceFolder}/${input:dataFile}"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz linear",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "linear",
-        "${workspaceFolder}/${input:dataFile}"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz triple-gp",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "triple-gp",
-        "${workspaceFolder}/${input:dataFile}"
-      ],
-      "justMyCode": false
-    },
-    {
       "name": "phases ana maps",
       "type": "python",
       "request": "launch",
@@ -106,66 +54,24 @@
       "args": [
         "ana",
         "maps",
-        "--data",
         "${workspaceFolder}/${input:dataFile}",
-        "--model",
-        "rbf"
+        "ilm"
       ],
       "justMyCode": false
     },
     {
-      "name": "phases ana rb",
+      "name": "phases ana maps cherrypick",
       "type": "python",
       "request": "launch",
       "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "ana",
-        "rb",
-        "upper",
-        "--data",
+        "maps",
         "${workspaceFolder}/${input:dataFile}",
-        "--grid-length",
-        "11",
-        "--model",
-        "linear"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases ana rb mock",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "ana",
-        "rb",
-        "upper",
-        "--data",
-        "${workspaceFolder}/${input:dataFile}",
-        "--model",
-        "mock",
-        "--grid-length",
-        "11"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases ana peaks",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "ana",
-        "peaks",
-        "--data",
-        "${workspaceFolder}/${input:dataFile}",
-        "--model",
-        "linear",
-        "--grid-length",
-        "21"
+        "ilm",
+        "--cherry-pick",
+        "[(2, 2)]"
       ],
       "justMyCode": false
     },
@@ -178,26 +84,35 @@
       "args": [
         "ana",
         "modalities",
-        "--data",
         "${workspaceFolder}/${input:dataFile}"
       ],
       "justMyCode": false
     },
     {
-      "name": "phases viz sobol",
+      "name": "phases ana concavity",
       "type": "python",
       "request": "launch",
       "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
-        "viz",
-        "sobol",
-        "combo=dqn_cartpole",
-        "ls=grid_3",
-        "slurm=local",
-        "phases=quick",
-        "num_confs=216",
-        "num_seeds=3"
+        "ana",
+        "concavity",
+        "${workspaceFolder}/${input:dataFile}",
+        "ilm"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases ana graphs",
+      "type": "python",
+      "request": "launch",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "ana",
+        "graphs",
+        "${workspaceFolder}/${input:dataFile}",
+        "ilm"
       ],
       "justMyCode": false
     },
@@ -229,44 +144,6 @@
         "resume",
         "${workspaceFolder}/${input:dataFile}"
       ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases ana concavity",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "ana",
-        "concavity",
-        "--data",
-        "${workspaceFolder}/${input:dataFile}",
-        "--model=rbf"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases ana graphs",
-      "type": "python",
-      "request": "launch",
-      "program": "${env:CONDA_PREFIX}/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "ana",
-        "graphs",
-        "--data",
-        "${workspaceFolder}/${input:dataFile}",
-        "--model=rbf"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "exponential functions",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/autorl_landscape/util/exponential_functions.py",
-      "console": "integratedTerminal",
       "justMyCode": false
     }
   ]
