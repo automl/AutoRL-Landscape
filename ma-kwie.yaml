@@ -21,6 +21,8 @@ dependencies:
   - glew
   - xorg-libx11
   - patchelf
+  # C++ dependency for libfolding, for modality analysis:
+  - armadillo
   # other stuff:
   - pip:
     - -r ma-kwie_requirements.txt
