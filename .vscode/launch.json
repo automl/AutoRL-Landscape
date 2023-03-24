@@ -6,9 +6,8 @@
       "type": "pickString",
       "description": "Data file for run: ",
       "options": [
-        "data/kwie98_paper/dqn_ls3_tnt_3.csv",
-        "data/kwie98_lls/sac_hopper.csv",
-        "data/kwie98_paper/test_resume_1.csv"
+        "data/kwie98_paper/dqn.csv",
+        "data/kwie98_paper/sac.csv"
       ]
     },
     {
@@ -113,6 +112,19 @@
         "graphs",
         "${workspaceFolder}/${input:dataFile}",
         "ilm"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases ana crashes",
+      "type": "python",
+      "request": "launch",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "ana",
+        "crashes",
+        "${workspaceFolder}/${input:dataFile}"
       ],
       "justMyCode": false
     },

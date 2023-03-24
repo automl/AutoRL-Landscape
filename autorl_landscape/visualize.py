@@ -13,7 +13,7 @@ from matplotlib.artist import Artist
 from matplotlib.axes import Axes
 from matplotlib.cm import ScalarMappable
 from matplotlib.colorbar import Colorbar
-from matplotlib.colors import BoundaryNorm, TwoSlopeNorm
+from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, TwoSlopeNorm
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpecFromSubplotSpec
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -54,15 +54,28 @@ CMAP_DIVERGING = {
     "cmap": sns.color_palette("vlag", as_cmap=True),
     "norm": TwoSlopeNorm(vmin=0.0, vcenter=1.0, vmax=3.5),
 }
+CMAP_CRASHED = {
+    "cmap": LinearSegmentedColormap.from_list("", ["#15161e", "#db4b4b"]),  # Tokyo!
+    "norm": TwoSlopeNorm(vmin=0.0, vcenter=0.5, vmax=1.0),
+}
 CMAP_DISCRETIZED = {
     "cmap": sns.color_palette("vlag", as_cmap=True),
     "norm": BoundaryNorm(boundaries=[-0.5, 0.75, 1.25, 4.0], ncolors=255),
 }
 
 FIGSIZES = {
-    "maps": (70, 18),
-    "modalities": (70, 7),
-    "graphs": (70, 18),
+    3: {
+        "maps": (70, 18),
+        "modalities": (70, 7),
+        "graphs": (70, 18),
+        "crashes": (70, 4),
+    },
+    4: {
+        "maps": (90, 18),
+        "modalities": (90, 7),
+        "graphs": (90, 18),
+        "crashes": (90, 4),
+    },
     "cherry_picked": (4, 4),
 }
 
@@ -95,7 +108,7 @@ def _add_colorbar(ax: Axes, cmap: dict[str, Any]) -> Colorbar:
 
 
 def is_picked(picks: list[tuple[int, int]], phase_number: int, row: int, col: int, ncols: int) -> bool:
-    """Calculate global position of a plot in a figure, check if that position is selected.
+    """Calculate global position of a plot in a figure, check if that position is selected. No picks means pick all.
 
     Args:
         picks: List of selected positions.
@@ -104,6 +117,8 @@ def is_picked(picks: list[tuple[int, int]], phase_number: int, row: int, col: in
         col: Local to phase.
         ncols: Number of columns for this phase's plots.
     """
+    if len(picks) == 0:
+        return True
     global_row = row
     global_col = (phase_number - 1) * ncols + col
     return (global_row, global_col) in picks
@@ -160,6 +175,18 @@ def visualize_cherry_picks(
                 for j, (x0, x1) in enumerate(x01s):  # columns
                     if is_picked(picks, phase_index, i, j, ncols):
                         name = title.lower().replace(" ", "_").replace("(", "").replace(")", "")
+                        make_figure([title], name, x0, x1)
+
+        case "crashes":
+            titles = list(dict.fromkeys([v.title for v in model.get_viz_infos() if v.viz_group == viz_group]))
+            x01s = list(combinations(model.get_ls_dim_names(), 2))  # all 2-combinations of x (ls) dimensions
+
+            ncols = len(x01s)
+
+            for i, title in enumerate(titles):  # rows
+                for j, (x0, x1) in enumerate(x01s):  # columns
+                    if is_picked(picks, phase_index, i, j, ncols):
+                        name = title.lower()
                         make_figure([title], name, x0, x1)
 
         case "graphs":  # x0 -> y
@@ -275,10 +302,6 @@ def visualize_nd(
                     label_x1=True,
                 )
 
-            # colorbar legend:
-            # colorbar_ax = fig.add_subplot(gs[:, -1])
-            # colorbar_ax.set_yticks(TICK_POS, [self.y_info.tick_formatter(x, None) for x in TICK_POS])
-            # colorbar_ax.set_ylabel(self.y_info.name)
         case "modalities":
             titles = list(dict.fromkeys([v.title for v in model.get_viz_infos() if v.viz_group == viz_group]))
             x01s = list(combinations(model.get_ls_dim_names(), 2))  # all 2-combinations of x (ls) dimensions
@@ -313,6 +336,40 @@ def visualize_nd(
             ax.axis("off")
 
             # colorbar_ax.set_yticks(TICK_POS, [self.y_info.tick_formatter(x, None) for x in TICK_POS])
+
+        case "crashes":
+            titles = list(dict.fromkeys([v.title for v in model.get_viz_infos() if v.viz_group == viz_group]))
+            x01s = list(combinations(model.get_ls_dim_names(), 2))  # all 2-combinations of x (ls) dimensions
+
+            nrows = 1 + len(titles)  # phase title, crashes
+            height_ratios = [0.25] + [1.0] * len(titles)
+            ncols = len(x01s)
+            width_ratios = [1.0] * len(x01s)
+            gs = GridSpecFromSubplotSpec(
+                nrows, ncols, subplot_spec=sub_gs, height_ratios=height_ratios, width_ratios=width_ratios
+            )
+
+            for i, title in enumerate(titles, start=1):  # rows
+                for j, (x0, x1) in enumerate(x01s):  # columns
+                    ax = fig.add_subplot(gs[i, j])
+                    viz_single_x0x1y(
+                        model,
+                        ax=ax,
+                        x0=x0,
+                        x1=x1,
+                        match_titles=[title],
+                        grid_length=grid_length,
+                        projection="",
+                        label_x0=True,
+                        label_x1=True,
+                    )
+
+            # titles on the left:
+            row_titles = titles
+            ax = fig.add_subplot(gs[0, :])
+            ax.text(0.5, 0.5, phase_title, ha="center", va="center", fontsize=TITLE_FSIZE)
+            ax.axis("off")
+
         case "graphs":  # x0 -> y
             x0s = model.get_ls_dim_names()
             # get unique titles, keeping first appearance order as in self._viz_infos:
@@ -443,22 +500,20 @@ def viz_single_x0x1y(
                         cbar = _add_colorbar(ax, CMAP_DIVERGING)
                         cbar.ax.set_ylabel(r"$\Phi$", fontsize=LABEL_FSIZE, labelpad=LABELPAD)
                         cbar.ax.yaxis.set_tick_params(labelsize=TICK_FSIZE)
+
+                    elif viz.title == "Crashes":
+                        cbar = _add_colorbar(ax, CMAP_CRASHED)
+                        cbar.ax.set_ylabel("Crash Chance", fontsize=LABEL_FSIZE, labelpad=LABELPAD)
+                        cbar.ax.yaxis.set_tick_params(labelsize=TICK_FSIZE)
+
                     elif viz.title == "Unimodality (discretized)":
                         cbar = _add_colorbar(ax, CMAP_DISCRETIZED)
-                        # Yes this is ugly but it works for now:
-                        # cbar.ax.set_ylabel(
-                        #     # "multimodal        uncategorized        unimodal",
-                        #     "MM    N/A    UM",
-                        #     fontsize=0.8 * LABEL_FSIZE,
-                        #     labelpad=LABELPAD,
-                        # )
-                        # cbar.ax.yaxis.set_minor_locator(ticker.FixedLocator([1.5, 2.5, 3.5, 4.5, 5.5]))
-                        # cbar.ax.yaxis.set_minor_formatter(ticker.FixedFormatter(["1", "2", "3", "4", "5"]))
                         cbar.ax.yaxis.set_minor_locator(
                             ticker.FixedLocator(_middle_of_boundaries(CMAP_DISCRETIZED["norm"].boundaries))
                         )
                         cbar.ax.yaxis.set_minor_formatter(ticker.FixedFormatter(["MM", "N/A", "UM"]))
                         cbar.ax.set_yticks([])
+
                     elif contourf is not None:
                         cbar = _add_colorbar(ax, CMAP)
                         cbar.ax.set_yticks(

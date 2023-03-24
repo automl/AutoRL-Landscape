@@ -13,6 +13,7 @@ from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 from omegaconf import DictConfig, OmegaConf
 
+from autorl_landscape.analyze.crashes import check_crashing
 from autorl_landscape.ls_models.ls_model import LSModel
 from autorl_landscape.ls_models.rbf import RBFInterpolatorLSModel
 from autorl_landscape.run.phase import resume_phases, start_phases
@@ -121,6 +122,13 @@ def main() -> None:
     _add_viz_arguments(parser_ana_graphs)
     parser_ana_graphs.set_defaults(func="graphs", grid_length=DEFAULT_GRID_LENGTH, model=None)
 
+    # phases ana crashes ...
+    parser_ana_crashes = ana_subparsers.add_parser("crashes", help="")
+    parser_ana_crashes.add_argument("data", help="csv file containing data of all runs")
+    parser_ana_crashes.add_argument("--grid-length", dest="grid_length", type=int, default=DEFAULT_GRID_LENGTH)
+    _add_viz_arguments(parser_ana_crashes)
+    parser_ana_crashes.set_defaults(func="crashes", model=None)
+
     # phases dl ...
     parser_dl = subparsers.add_parser("dl")
     parser_dl.add_argument("entity_name", type=str)
@@ -139,7 +147,7 @@ def main() -> None:
             visualize_data_samples(args.data)
         case "viz_spec":
             visualize_landscape_spec(_prepare_hydra(args))
-        case "maps" | "modalities" | "graphs":
+        case "maps" | "modalities" | "graphs" | "crashes":
             # lazily import ana-only deps:
             from autorl_landscape.analyze.modalities import check_modality
             from autorl_landscape.analyze.peaks import find_peaks_model
@@ -148,7 +156,7 @@ def main() -> None:
             df = read_wandb_csv(file)
             phase_indices = sorted(df["meta.phase"].unique())
 
-            fig = plt.figure(figsize=FIGSIZES[args.func])
+            fig = plt.figure(figsize=FIGSIZES[len(phase_indices)][args.func])
             global_gs = fig.add_gridspec(1, 1 + len(phase_indices))
             if args.cherry_picks is not None:
                 # Do some type checking at runtime:
@@ -184,6 +192,9 @@ def main() -> None:
                         check_modality(model, args.grid_length)
                         add_legend = False
                     case "graphs":
+                        add_legend = False
+                    case "crashes":
+                        check_crashing(model, args.grid_length)
                         add_legend = False
 
                 save_base = None

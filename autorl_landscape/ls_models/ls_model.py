@@ -72,6 +72,7 @@ class LSModel(BaseEstimator):
         # all evaluations (y values) for a group (configuration):
         y = np.array(list(conf_groups[self.y_info.name].sum()), dtype=self.dtype)
         # handle crashed runs by assigning 0 return:
+        self.crashed = np.isnan(y)
         y[np.isnan(y)] = 0
 
         # scale ls dims into [0, 1] interval:
