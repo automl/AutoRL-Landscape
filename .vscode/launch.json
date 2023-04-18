@@ -16,7 +16,8 @@
       "description": "Combo: ",
       "options": [
         "dqn_cartpole",
-        "sac_hopper"
+        "sac_hopper",
+        "ppo_walker"
       ]
     },
     {
@@ -25,7 +26,8 @@
       "description": "LS: ",
       "options": [
         "dqn",
-        "sac"
+        "sac",
+        "ppo"
       ]
     }
   ],

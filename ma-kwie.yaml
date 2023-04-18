@@ -16,6 +16,8 @@ dependencies:
   - pandas-stubs=1.5
   - scikit-learn=1.2
   - gym=0.21
+  # for bipedal-walker:
+  - box2d-py=2.3.8
   # mujoco stuff:
   - gcc
   - glew

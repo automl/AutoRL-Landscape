@@ -1,6 +1,7 @@
 from typing import Any
 
-import gym
+import logging
+
 import numpy as np
 import wandb
 from numpy.typing import NDArray
@@ -8,11 +9,11 @@ from omegaconf import DictConfig
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import sync_envs_normalization
-from stable_baselines3.common.vec_env.base_vec_env import VecEnv
 from wandb.sdk.lib.disabled import RunDisabled
 from wandb.sdk.wandb_run import Run
 
 from autorl_landscape.run.eval_stage import EvalStage, FinalEval, FreqEval, LSEval
+from autorl_landscape.run.rl_context import make_env
 
 
 class LandscapeEvalCallback(BaseCallback):
@@ -33,14 +34,12 @@ class LandscapeEvalCallback(BaseCallback):
         self,
         conf: DictConfig,
         phase_index: int,
-        eval_env: gym.Env | VecEnv,
         ls_model_save_path: str,
         run: Run | RunDisabled,
         agent_seed: int,
         ls_spec: dict[str, Any],
     ):
         super().__init__(verbose=1)
-        self.eval_env = eval_env
         self.ls_spec = ls_spec
         self.crashed_at: int | None = None
 
@@ -86,20 +85,21 @@ class LandscapeEvalCallback(BaseCallback):
         self.hist_bins = conf.viz.hist_bins + 1  # internally used for np.linspace, so one more is needed
 
     def _on_training_start(self) -> None:
-        print(f"{self.run.id=} {self.run.name=}")
+        logging.warning(f"{self.run.id=} {self.run.name=}")
         # print("num_timesteps new_obs rewards dones sum(replay_buffer) sum(q_net) sum(q_net_target) exploration_rate")
 
     def _on_step(self) -> bool:
         """Stop training when all evaluations have been done."""
-        # with np.printoptions(precision=4, linewidth=500, suppress=True):
-        #     print(
-        #         "{} {} {} {} {}".format(
+        # with np.printoptions(linewidth=1000, suppress=True):
+        #     logging.warning(
+        #         "{} {} {} {} {} {} {}".format(
         #             self.num_timesteps,
         #             self.locals["new_obs"],
         #             self.locals["rewards"],
         #             self.locals["dones"],
-        #             self.locals["replay_buffer"].observations.sum(),
-        #             # sum([layer.sum() for layer in self.model.q_net.parameters()]),
+        #             self.locals["clipped_actions"],
+        #             self.locals["rollout_buffer"].observations.sum(),
+        #             sum([layer.sum() for layer in self.model.policy.parameters()]),
         #             # sum([layer.sum() for layer in self.model.q_net_target.parameters()]),
         #             # self.model.exploration_rate,
         #         )
@@ -151,10 +151,14 @@ class LandscapeEvalCallback(BaseCallback):
         if len(eval_stages) == 0:
             return
 
+        # Evaluate the agent:
+        eval_env = make_env(self.model.env.envs[0].spec.id, self.eval_seed)
+        eval_env.seed(self.eval_seed)
+
         # Sync training and eval env if there is VecNormalize
         if self.model.get_vec_normalize_env() is not None:
             try:
-                sync_envs_normalization(self.training_env, self.eval_env)
+                sync_envs_normalization(self.training_env, eval_env)
             except AttributeError as e:
                 raise AssertionError(
                     "Training and eval env are not wrapped the same way, "
@@ -165,11 +169,9 @@ class LandscapeEvalCallback(BaseCallback):
         # Evals can overlap, so calculate how many evaluation episodes are needed:
         eval_episodes = max(eval_stage.num_episodes for eval_stage in eval_stages)
 
-        # Evaluate the agent:
-        self.eval_env.seed(self.eval_seed)
         returns, ep_lengths = evaluate_policy(
             model=self.model,
-            env=self.eval_env,
+            env=eval_env,
             n_eval_episodes=eval_episodes,
             return_episode_rewards=True,
         )
@@ -184,7 +186,7 @@ class LandscapeEvalCallback(BaseCallback):
             if isinstance(eval_stage, LSEval):
                 # Save ("checkpoint") the model at the end of the landscape stage:
                 if self.verbose > 0:
-                    print(f"Saving model checkpoint to {self.ls_model_save_path}")
+                    logging.warning(f"Saving model checkpoint to {self.ls_model_save_path}")
                 self.model.custom_save(self.ls_model_save_path, seed=self.agent_seed)
         self.write_evaluation(eval_stages_data)
 

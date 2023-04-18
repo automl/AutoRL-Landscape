@@ -9,6 +9,9 @@ agent:
     # use_sde: False
     learning_starts: 10000 # zoo
     buffer_size: 500000
+    optimize_memory_usage: true # for smaller replay buffers on disk
+    replay_buffer_kwargs:
+      handle_timeout_termination: false
 eval:
   freq_eval_episodes: 10
   ls_eval_episodes: 20

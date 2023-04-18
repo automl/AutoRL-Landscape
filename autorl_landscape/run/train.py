@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 from omegaconf import DictConfig, OmegaConf
 
 from autorl_landscape.custom_agents.dqn import CustomDQN
+from autorl_landscape.custom_agents.ppo import CustomPPO
 from autorl_landscape.custom_agents.sac import CustomSAC
 from autorl_landscape.run.callback import LandscapeEvalCallback
 from autorl_landscape.run.rl_context import make_env
@@ -39,8 +40,8 @@ def train_agent(
         wandb id of the run and all collected final performance values of the run. I.e. shape is
             (conf.combo.eval.final_eval_episodes * conf.combo.final_eval_times,)
     """
-    env = make_env(conf.env.name, seed)
-    eval_env = make_env(conf.env.name, seed)
+    n_envs = conf.env.n_envs if hasattr(conf.env, "n_envs") else None
+    env = make_env(conf.env.name, seed, n_envs)
 
     # Quick fix to accept both single tags and lists of tags (because of resume):
     experiment_tags: list[str] = []
@@ -85,11 +86,6 @@ def train_agent(
         "verbose": 0,  # WARNING Higher than 0 breaks the console output logging with too long keys
         "tensorboard_log": f"runs/{run.id}",
         "seed": seed,
-        # For smaller replay buffers on disk:
-        "optimize_memory_usage": True,
-        "replay_buffer_kwargs": {
-            "handle_timeout_termination": False,
-        },
     }
 
     match conf.agent.name:
@@ -97,6 +93,8 @@ def train_agent(
             agent_class = CustomDQN
         case "SAC":
             agent_class = CustomSAC
+        case "PPO":
+            agent_class = CustomPPO
         case _:
             error_msg = f"Unknown agent type {conf.agent.name}."
             raise ValueError(error_msg)
@@ -111,7 +109,6 @@ def train_agent(
     landscape_eval_callback = LandscapeEvalCallback(
         conf,
         phase_index,
-        eval_env,
         f"{phase_path}/agents/{run.id}",
         run,
         seed,
