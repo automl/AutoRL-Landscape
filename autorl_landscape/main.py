@@ -32,6 +32,7 @@ from autorl_landscape.visualize import (
 DEFAULT_GRID_LENGTH = 51
 MODELS = ["ilm", "igpr"]
 VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
+Y_BOUNDS = (-200, 200)  # for PPO, otherwise you can use None to do automatic bounds
 
 T = TypeVar("T")
 
@@ -175,14 +176,14 @@ def main() -> None:
                 phase_data, best_conf = split_phases(df, phase_index)
                 match args.model:
                     case "ilm":
-                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS, best_conf)
                     case "igpr":
                         from autorl_landscape.ls_models.triple_gp import TripleGPModel
 
-                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS, best_conf)
                         model.fit()
                     case _:
-                        model = LSModel(phase_data, np.float64, "ls_eval/returns", None, best_conf)
+                        model = LSModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS, best_conf)
                 match args.func:
                     case "maps":
                         if not isinstance(model, RBFInterpolatorLSModel):  # adding peaks for this model looks too noisy
@@ -225,11 +226,11 @@ def main() -> None:
                 phase_data, _ = split_phases(df, phase_index)
                 match args.model:
                     case "ilm":
-                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns")
+                        model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS)
                     case "igpr":
                         from autorl_landscape.ls_models.triple_gp import TripleGPModel
 
-                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns")
+                        model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS)
                         model.fit()
                     case _:
                         pass
