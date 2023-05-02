@@ -11,6 +11,10 @@ conda activate autorl-landscape
 pip install -e . # install the executable of this repository into the newly made environment
 ```
 
+### Additional dependency for Mujoco
+The environments require Mujoco which needs to be installed in addition to the python bindings.
+You can find installation info [here](https://github.com/openai/mujoco-py#install-mujoco).
+
 ### Additional dependency for `phases ana modalities ...`
 
 The modality analysis uses `python3-libfolding`, which depends on the `C++` library
@@ -20,7 +24,7 @@ may be installed from source.
 ### Additional OpenGL dependency
 
 The environment does not provide an OpenGL header file. A workaround is to
-softlink the system installation as described in `ma-kwie.yaml`.
+softlink the system installation as described in `env-setup.yaml`.
 
 ## Usage
 
@@ -35,17 +39,20 @@ Usage examples:
 
 ```bash
 # Commands used to create the final datasets:
-phases run combo=dqn_cartpole ls=dqn slurm=local phases=150k   num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
-phases run combo=sac_hopper   ls=sac slurm=local phases=500k_4 num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
+phases run combo=dqn_cartpole ls=dqn slurm=local phases=150k    num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
+phases run combo=sac_hopper   ls=sac slurm=local phases=500k_4  num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
+phases run combo=ppo_walker   ls=ppo slurm=local phases=150k    num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
 
 # Download the data of an experiment to a single file into the data/ directory:
 phases dl entity_name project_name experiment_tag
 
 # Create visualizations, specifying to either construct an ILM or an IGPR model if a landscape model is required:
-phases ana maps path/to/data.csv {ilm,igpr} [--grid-length=grid_length]
-phases ana graphs path/to/data.csv {ilm,igpr}
-phases ana modalities path/to/data.csv [--grid-length=grid_length]
-phases ana concavity path/to/data.csv {ilm,igpr} [--grid-length=grid_length]
+# You can also run `bash make_plots.sh ALGORITHM` with ALGORITHM either sac, dqn or ppo
+# --savefig saves the figures to disk to `figures/ALGORITHM/...
+phases ana maps data/ALGORITHM.csv {ilm,igpr}  --savefig
+phases ana graphs data/ALGORITHM.csv {ilm,igpr} --savefig
+phases ana modalities data/ALGORITHM.csv --savefig
+phases ana concavity data/ALGORITHM.csv {ilm,igpr}  --savefig
 ```
 
 ## Experiment Configuration
@@ -55,6 +62,7 @@ directory. `conf/config.yaml` is the root of the configuration tree. The differe
 exchangeable configurations for RL contexts (`conf/combo/`), the search space (`conf/ls/`), the
 phase configuration for the data collection (`conf/phases/`), and the SLURM cluster configuration
 (`conf/slurm/`).
+You can have a look at the slurm config files to configure your cluster and save it to `confs/slurm/yourconfig.yaml`. You then need to add  `slurm=yourconfig` to the commandline, as seen in the runcommands above. The slurm interface is managed by hydra, see [here](https://hydra.cc/docs/plugins/submitit_launcher/) for more information.
 
 ## Dataset Description
 
