@@ -32,7 +32,11 @@ from autorl_landscape.visualize import (
 DEFAULT_GRID_LENGTH = 51
 MODELS = ["ilm", "igpr"]
 VISUALIZATION_GROUPS = ["maps", "peaks", "graphs"]
-Y_BOUNDS = (-200, 200)  # for PPO, otherwise you can use None to do automatic bounds
+Y_BOUNDS = (-200, 200)  # PPO
+# Y_BOUNDS = (0, 500)     # DQN
+# Y_BOUNDS = (0, 5000)    # SAC
+
+#(-200, 200)  # for PPO, otherwise you can use None to do automatic bounds
 
 T = TypeVar("T")
 
