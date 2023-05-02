@@ -30,9 +30,9 @@ from autorl_landscape.util.ls_sampler import construct_ls
 
 # font sizes:
 TITLE_FSIZE = 24
-LABEL_FSIZE = 15
-TICK_FSIZE = 13
-LEGEND_FSIZE = 15
+LABEL_FSIZE = 24
+TICK_FSIZE = 20
+LEGEND_FSIZE = 18
 # TITLE_FSIZE = 1
 # LABEL_FSIZE = 1
 # TICK_FSIZE = 1

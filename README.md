@@ -6,8 +6,8 @@
 git clone https://github.com/automl-private/AutoRL-Landscape.git
 cd AutoRL-Landscape
 
-conda env create -f ma-kwie.yaml
-conda activate ma-kwie
+conda env create -f env-setup.yaml
+conda activate autorl-landscape
 pip install -e . # install the executable of this repository into the newly made environment
 ```
 
