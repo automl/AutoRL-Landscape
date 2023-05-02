@@ -5,6 +5,7 @@ from ast import literal_eval
 from collections.abc import Iterable
 from itertools import zip_longest
 from pathlib import Path
+import pandas as pd
 
 import hydra
 import matplotlib.pyplot as plt
@@ -172,18 +173,29 @@ def main() -> None:
                     if not (isinstance(x, int) and isinstance(y, int)):
                         raise TypeError(msg)
 
+            fitdata = []
             for phase_index, sub_gs in zip(phase_indices, [gs for gs in global_gs][1:]):
                 phase_data, best_conf = split_phases(df, phase_index)
                 match args.model:
                     case "ilm":
                         model = RBFInterpolatorLSModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS, best_conf)
+                        _fitdata = model.estimate_iqm_fit()
+                        _fitdata["phase_index"] = phase_index
+                        _fitdata["mode"] = args.func
+                        fitdata.append(_fitdata)
                     case "igpr":
                         from autorl_landscape.ls_models.triple_gp import TripleGPModel
 
                         model = TripleGPModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS, best_conf)
                         model.fit()
+                        print("\n\n>>>>>>>>>>>>>  Mode:", args.func, "\tphase_index:", phase_index)
+                        _fitdata = model.estimate_iqm_fit()
+                        _fitdata["phase_index"] = phase_index
+                        _fitdata["mode"] = args.func
+                        fitdata.append(_fitdata)
                     case _:
                         model = LSModel(phase_data, np.float64, "ls_eval/returns", Y_BOUNDS, best_conf)
+                
                 match args.func:
                     case "maps":
                         if not isinstance(model, RBFInterpolatorLSModel):  # adding peaks for this model looks too noisy
@@ -213,8 +225,17 @@ def main() -> None:
                     visualize_cherry_picks(
                         model, args.cherry_picks, args.grid_length, args.func, phase_index, Path("figures") / file.stem
                     )
+
+            fitdata = pd.concat(fitdata)
+            fitdatabase = save_base if save_base else Path("figures") / file.stem
+            fn = Path(fitdatabase) / "iqm_fit_cv.csv"
+            fn.parent.mkdir(parents=True, exist_ok=True)
+            fitdata.to_csv(fn, index=False)
+
             if args.cherry_picks is None:
                 plot_figure(fig, global_gs, save_base, row_titles, height_ratios, add_legend)
+
+            
 
         case "concavity":
             from autorl_landscape.analyze.concavity import find_biggest_nonconcave
