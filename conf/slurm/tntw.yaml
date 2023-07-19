@@ -1,0 +1,12 @@
+# @package _global_
+
+wandb:
+  mode: offline
+slurm:
+  cluster: Null # becomes None in python
+  num_parallel: 50
+  update_parameters: # for executor.update_parameters()
+    timeout_min: 1000
+    slurm_partition: gpu_normal
+    gpus_per_node: 1
+    mem_gb: 3

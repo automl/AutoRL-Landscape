@@ -4,7 +4,7 @@ import time
 
 import submitit
 
-from autorl_landscape.util.schedule import schedule
+from autorl_landscape.run.phase import schedule_runs
 
 
 def test_null() -> None:
@@ -12,7 +12,7 @@ def test_null() -> None:
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    res: list = schedule(executor, lambda x: x, [], 10, 1)
+    res: list = schedule_runs(executor, lambda x: x, [], 10, 1)
     assert res == []
 
 
@@ -21,7 +21,7 @@ def test_many_jobs() -> None:
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    schedule(executor, time.sleep, [(1,) for _ in range(5)], num_parallel=1000)
+    schedule_runs(executor, time.sleep, [(1,) for _ in range(5)], num_parallel=1000)
 
 
 def test_adding_many_at_same_time() -> None:
@@ -29,7 +29,7 @@ def test_adding_many_at_same_time() -> None:
     executor = submitit.AutoExecutor(folder="test_submitit", cluster="local")
     executor.update_parameters(timeout_min=1000, slurm_partition="dev", gpus_per_node=1)
 
-    schedule(executor, time.sleep, [(0.1,) for _ in range(20)], num_parallel=5, polling_rate=1)
+    schedule_runs(executor, time.sleep, [(0.1,) for _ in range(20)], num_parallel=5, polling_rate=1)
 
 
 def test_return_order() -> None:
@@ -41,7 +41,7 @@ def test_return_order() -> None:
         return a - b
 
     num_tasks = 20
-    ret = schedule(executor, subtract, [(2 * i, i) for i in range(num_tasks)], num_parallel=10, polling_rate=1)
+    ret = schedule_runs(executor, subtract, [(2 * i, i) for i in range(num_tasks)], num_parallel=10, polling_rate=1)
     assert ret == list(range(num_tasks))
 
 
@@ -56,7 +56,7 @@ def check_timing() -> None:
         return (t, t_start, time.perf_counter())
 
     t_0 = time.perf_counter()
-    schedule(executor, f, [(t,) for t in range(5, 0, -1)], 2, 0.001)  # TODO maybe reverse range?
+    schedule_runs(executor, f, [(t,) for t in range(5, 0, -1)], 2, 0.001)  # TODO maybe reverse range?
     t_1 = time.perf_counter()
     # assert t_1 - t_0 >= 0.5  # TODO no overhead when starting dummy job first?
     print(t_1 - t_0)

@@ -1,5 +1,7 @@
 # @package _global_
 
+wandb:
+  mode: disabled
 slurm:
   cluster: debug
   num_parallel: 1 # does not matter anyways?

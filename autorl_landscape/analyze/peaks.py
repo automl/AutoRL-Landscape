@@ -2,12 +2,7 @@ from typing import Any, Callable
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.ndimage import (
-    binary_dilation,
-    generic_filter,
-    maximum_filter,
-    minimum_filter,
-)
+from scipy.ndimage import binary_dilation, generic_filter, maximum_filter, minimum_filter
 
 from autorl_landscape.ls_models.ls_model import LSModel, Visualization
 from autorl_landscape.util.grid_space import grid_space_nd
@@ -51,6 +46,7 @@ def find_peaks_model(
 def find_peaks(y_grid: NDArray[Any], num_dims: int) -> tuple[NDArray[np.bool_], NDArray[np.bool_], int, int]:
     """Count local minima and maxima of given data."""
     # find plateaus (these could be local minima, maxima, or saddle points):
+
     def any_equal_to_middle(x: NDArray[Any]):
         middle = x[len(x) // 2]
         return np.sum(x == middle) >= 2

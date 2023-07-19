@@ -1,0 +1,10 @@
+# @package _global_
+
+# Good setting for sac_hopper
+phases:
+  - 125000
+  - 250000
+  - 375000
+  - 500000
+eval:
+  freq_eval_interval: 5000

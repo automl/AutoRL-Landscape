@@ -1,67 +1,48 @@
 {
   "version": "0.2.0",
+  "inputs": [
+    {
+      "id": "dataFile",
+      "type": "pickString",
+      "description": "Data file for run: ",
+      "options": [
+        "data/kwie98_paper/dqn.csv",
+        "data/kwie98_paper/sac.csv"
+      ]
+    },
+    {
+      "id": "combo",
+      "type": "pickString",
+      "description": "Combo: ",
+      "options": [
+        "dqn_cartpole",
+        "sac_hopper",
+        "ppo_walker"
+      ]
+    },
+    {
+      "id": "ls",
+      "type": "pickString",
+      "description": "LS: ",
+      "options": [
+        "dqn",
+        "sac",
+        "ppo"
+      ]
+    }
+  ],
   "configurations": [
     {
       "name": "phases dl",
       "type": "python",
       "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "dl",
-        "test_exploration"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz data",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz hsgp",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "gp",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz linear",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "linear",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz triple-gp",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "triple-gp",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv"
+        "kwie98",
+        "paper",
+        "foo"
       ],
       "justMyCode": false
     },
@@ -69,71 +50,29 @@
       "name": "phases ana maps",
       "type": "python",
       "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "ana",
         "maps",
-        "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv",
-        "--model",
-        "rbf"
+        "${workspaceFolder}/${input:dataFile}",
+        "ilm"
       ],
       "justMyCode": false
     },
     {
-      "name": "phases ana rb",
+      "name": "phases ana maps cherrypick",
       "type": "python",
       "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "ana",
-        "rb",
-        "upper",
-        "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv",
-        "--grid-length",
-        "11",
-        "--model",
-        "linear"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases ana rb mock",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "ana",
-        "rb",
-        "upper",
-        "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv",
-        "--model",
-        "mock",
-        "--grid-length",
-        "11"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases ana peaks",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "ana",
-        "peaks",
-        "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv",
-        "--model",
-        "linear",
-        "--grid-length",
-        "21"
+        "maps",
+        "${workspaceFolder}/${input:dataFile}",
+        "ilm",
+        "--cherry-pick",
+        "[(2, 2)]"
       ],
       "justMyCode": false
     },
@@ -141,48 +80,12 @@
       "name": "phases ana modalities",
       "type": "python",
       "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "ana",
         "modalities",
-        "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases viz sobol",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "viz",
-        "sobol",
-        "combo=dqn_cartpole",
-        "ls=grid_3",
-        "slurm=local",
-        "phases=quick",
-        "num_confs=216",
-        "num_seeds=3"
-      ],
-      "justMyCode": false
-    },
-    {
-      "name": "phases run debug",
-      "type": "python",
-      "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
-      "console": "integratedTerminal",
-      "args": [
-        "run",
-        "combo=dqn_cartpole",
-        "ls=debug",
-        "slurm=debug",
-        "phases=quick",
-        "num_confs=2",
-        "num_seeds=1"
+        "${workspaceFolder}/${input:dataFile}"
       ],
       "justMyCode": false
     },
@@ -190,14 +93,13 @@
       "name": "phases ana concavity",
       "type": "python",
       "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "ana",
         "concavity",
-        "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv",
-        "--model=rbf"
+        "${workspaceFolder}/${input:dataFile}",
+        "ilm"
       ],
       "justMyCode": false
     },
@@ -205,14 +107,56 @@
       "name": "phases ana graphs",
       "type": "python",
       "request": "launch",
-      "program": "/data/conda/envs/ma10/bin/phases",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
       "console": "integratedTerminal",
       "args": [
         "ana",
         "graphs",
-        "--data",
-        "/home/konrad/Documents/uni/masterarbeit/AutoRL-Landscape/data/kwie98/dqn_cartpole_3_phases.csv",
-        "--model=rbf"
+        "${workspaceFolder}/${input:dataFile}",
+        "ilm"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases ana crashes",
+      "type": "python",
+      "request": "launch",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "ana",
+        "crashes",
+        "${workspaceFolder}/${input:dataFile}"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases run",
+      "type": "python",
+      "request": "launch",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "run",
+        "combo=${input:combo}",
+        "ls=${input:ls}",
+        "slurm=debug",
+        "phases=quick",
+        "num_confs=1",
+        "num_seeds=1",
+        "wandb.experiment_tag=debug"
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "phases resume",
+      "type": "python",
+      "request": "launch",
+      "program": "${env:CONDA_PREFIX}/bin/phases",
+      "console": "integratedTerminal",
+      "args": [
+        "resume",
+        "${workspaceFolder}/${input:dataFile}"
       ],
       "justMyCode": false
     }

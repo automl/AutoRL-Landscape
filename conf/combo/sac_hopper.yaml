@@ -1,0 +1,34 @@
+# @package _global_
+
+env:
+  name: Hopper-v3
+agent:
+  name: SAC
+  hps:
+    policy: 'MlpPolicy' # zoo
+    # use_sde: False
+    learning_starts: 10000 # zoo
+    buffer_size: 500000
+    optimize_memory_usage: true # for smaller replay buffers on disk
+    replay_buffer_kwargs:
+      handle_timeout_termination: false
+eval:
+  freq_eval_episodes: 10
+  ls_eval_episodes: 20
+  final_eval_episodes: 20
+  final_eval_start: 0.95 # 95% progress (of total_timesteps) is first final eval
+  final_eval_times: 3 # 3 final evals from final_eval_start until total_timesteps
+viz:
+  max_return: 5000
+  max_ep_length: 5000
+  hist_bins: 100
+# from sac.yaml:
+# name: SAC
+# hps:
+#   n_step: 1
+#   beta: 0.2
+#   replay_capacity: 100000 # from CARL, original uses 1000000
+#   warmup_steps: 100 # for filling the replay buffer. warmup_steps >= batch_size
+#   exploration_steps: 0 # during this time, use a random (uniform) policy but already learn the true policy.
+#   batch_size: 32 # 256 # from repro
+#   target_smoothing: 0.005 # τ for ema of Q

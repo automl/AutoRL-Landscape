@@ -1,6 +1,7 @@
 import numpy as np
+import pytest
 
-from autorl_landscape.util.compare import choose_best_conf, construct_2d
+from autorl_landscape.run.compare import choose_best_policy, construct_2d
 
 
 def test_compare() -> None:
@@ -9,8 +10,16 @@ def test_compare() -> None:
     The final chosen run should come from the set of runs with the configuration that yields the best IQM. From this
     set, it should again be the run with the best IQM.
     """
-    # run_ids = np.array([["a", "b", "c", "d"], ["e", "f", "g", "h"], ["i", "j", "k", "l"]])
-    run_ids = np.array([["a", "b"], ["c", "d"], ["e", "f"]])
+    run_ids = np.array(
+        [
+            ["a", "b"],
+            ["c", "d"],
+            ["e", "f"],
+            ["g", "h"],
+            ["i", "j"],
+            ["k", "l"],
+        ],
+    )
     # mean thinks that row 2 is best, chooses conf 2 from there -> "d"
     # IQM thinks that row 3 is best, chooses conf 1 from there -> "e"
     final_mean_rewards = np.array(
@@ -18,10 +27,26 @@ def test_compare() -> None:
             [[20, 0, 0, 1], [5, 6, 7, 8]],  # m 5.25, 6.5 (total 5.875); iqm 0.5 6.5 (total 4.75)
             [[9, 11, 10, 8], [100, 0, 0, 0]],  # m 9.5 25 (total 17.25); iqm 9.5 0 (total 6.75)
             [[8, 8, 8, 8], [7, 7, 7, 50]],  # m 8 17.75 (total 12.875); iqm 8 7 (total 7.75)
+            [[np.nan, 1000, 1000, 1000], [1000, 1000, 1000, 1000]],  # existence of nan signifies crashed run, ignore
+            [[np.nan, np.nan, np.nan, np.nan], [1000, 1000, 1000, 1000]],
+            [[np.nan, np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan, np.nan]],
         ]
     )
-    best_id = choose_best_conf(run_ids, final_mean_rewards, None)
+    best_id = choose_best_policy(run_ids, final_mean_rewards, None)
     assert best_id == "e"
+
+
+def test_compare_all_crashed() -> None:
+    """When all runs crash at least once, no optimal configuration can be picked."""
+    run_ids = np.array([["a", "b"], ["c", "d"]])
+    final_mean_rewards = np.array(
+        [
+            [[np.nan, 1], [123, 98576]],
+            [[np.nan, np.nan], [np.nan, np.nan]],
+        ]
+    )
+    with pytest.raises(ValueError, match="Cannot pick best configuration."):
+        choose_best_policy(run_ids, final_mean_rewards, None)
 
 
 def test_construct_2d() -> None:

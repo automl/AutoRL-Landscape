@@ -136,7 +136,7 @@ dmypy.json
 /wandb-old
 
 # plt figures
-/images
+/figures
 
 # idk
 /logs
@@ -144,6 +144,7 @@ dmypy.json
 /multirun
 /runs
 /phase_results
+/tests/phase_results
 /submitit
 /test_submitit
 

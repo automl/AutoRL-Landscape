@@ -1,15 +1,16 @@
 from typing import Any
 
 from ast import literal_eval
+from warnings import warn
 
 import numpy as np
 from numpy.typing import NDArray
 from pandas import DataFrame, Series
 from sklearn.base import BaseEstimator
 
-from autorl_landscape.types.dim_info import DimInfo
-from autorl_landscape.types.visualization import Visualization
-from autorl_landscape.util.compare import iqm
+from autorl_landscape.analyze.visualization import Visualization
+from autorl_landscape.run.compare import iqm
+from autorl_landscape.util.ls_sampler import LSDimension
 
 
 class LSModel(BaseEstimator):
@@ -47,17 +48,17 @@ class LSModel(BaseEstimator):
             y_dict = {"type": "Float", "lower": y_bounds[0], "upper": y_bounds[1]}
         else:
             y_dict = {"type": "Float", "lower": 0.0, "upper": float(data[0:1]["conf.viz.max_return"])}
-        y_info = DimInfo.from_dim_dict(y_col, y_dict, is_y=True)
+        y_info = LSDimension.from_dim_dict(y_col, y_dict, is_y=True)
         assert y_info is not None
         self.y_info = y_info
 
         # extract ls dimensions info from first row of data:
         dim_dicts: list[dict[str, dict[str, Any]]] = literal_eval(data[0:1]["conf.ls.dims"][0])
-        self.dim_info: list[DimInfo] = []
+        self.dim_info: list[LSDimension] = []
         """DimInfos for each LS dimension, sorted by name"""
         for d in dim_dicts:
             dim_name, dim_dict = next(iter(d.items()))
-            di = DimInfo.from_dim_dict(dim_name, dim_dict)
+            di = LSDimension.from_dim_dict(dim_name, dim_dict)
 
             if di is not None:
                 self.dim_info.append(di)
@@ -70,6 +71,9 @@ class LSModel(BaseEstimator):
         """(num_confs, num_ls_dims). LS dimensions are sorted by name"""
         # all evaluations (y values) for a group (configuration):
         y = np.array(list(conf_groups[self.y_info.name].sum()), dtype=self.dtype)
+        # handle crashed runs by assigning 0 return:
+        self.crashed = np.isnan(y)
+        y[np.isnan(y)] = 0
 
         # scale ls dims into [0, 1] interval:
         for i in range(len(self.dim_info)):
@@ -78,6 +82,9 @@ class LSModel(BaseEstimator):
         # scale y into [0, 1] interval:
         self.y = self.y_info.ls_to_unit(y)
         """(num_confs, samples_per_conf)"""
+
+        if np.any(np.isnan(self.y)):
+            warn("Performance data includes NaN's (crashed runs).")
 
         # just all the single evaluation values, not grouped (but still scaled to [0, 1] interval):
         self.x_samples = np.repeat(self.x, self.y.shape[1], axis=0)
@@ -112,7 +119,12 @@ class LSModel(BaseEstimator):
         """Get the list of hyperparameter landscape dimension names."""
         return [di.name for di in self.dim_info]
 
-    def get_dim_info(self, name: str) -> DimInfo | None:
+    @staticmethod
+    def get_model_name() -> str:
+        """Return name of this model, for naming files and the like."""
+        return ""
+
+    def get_dim_info(self, name: str) -> LSDimension | None:
         """Return matching `DimInfo` to a passed name (can be y_info of any dim_info)."""
         if name == self.y_info.name:
             return self.y_info

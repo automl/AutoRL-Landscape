@@ -35,6 +35,83 @@ testpaths = ["tests"] # path to the test directory
 #     "raise NotImplementedError",
 #     "if TYPE_CHECKING",
 # ] # These are lines to exclude from coverage
+[tool.ruff]
+select = [
+    "F",
+    "E",
+    "W",
+    "C90",
+    # "I", # use upstream isort for now, custom order not implemented
+    "N",
+    "D",
+    "UP",
+    "YTT",
+    "ANN",
+    "S",
+    "BLE",
+    "FBT",
+    "B",
+    "A",
+    "COM",
+    "C4",
+    "DTZ",
+    "T10",
+    "DJ",
+    "EM",
+    "EXE",
+    "ISC",
+    "ICN",
+    "G",
+    # "INP", # missing __init__.py files ok?
+    "PIE",
+    # "T20", # prints are ok
+    "PYI",
+    "PT",
+    "Q",
+    "RSE",
+    "RET",
+    "SLF",
+    "SIM",
+    "TID",
+    "TCH",
+    "ARG",
+    "PTH",
+    # "ERA", # commented code
+    "PD",
+    "PGH",
+    "PL",
+    "TRY",
+    "NPY",
+    "RUF",
+]
+ignore = [
+    "ANN101",  # self type annotation not needed
+    "ANN102",  # cls type annotation not needed
+    "ANN204",  # __init__ return type annotation not needed
+    "COM812",  # Missing trailing comma is ok(just follow black for this)
+    "D100",    # Missing docstring in public module is ok
+    "D104",    # Missing docstring in public package is ok
+    "D105",    # Missing docstring in magic method is ok
+    "D107",    # Missing docstring in __init__ method is ok
+    "E731",    # lambdas are ok
+    "PLR0913", # Too many arguments are ok
+    "PLR0915", # Too many statements are ok
+    "S101", # asserts are ok
+]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.flake8]
+show-source = true
+max-line-length = 120
+extend-exclude = ["venv", ".venv", "build"]
+extend-ignore = [
+    "E203", # No whitespace before ':' in [x : y]
+    "E731", # No lambdas — too strict
+]
 
 [tool.black]
 target-version = ['py310']
@@ -43,6 +120,7 @@ line-length = 120
 [tool.isort]
 py_version = "310"
 profile = "black" # Play nicely with black
+line_length = 120
 src_paths = ["autorl_landscape", "tests"]
 known_types = ["typing", "abc"] # We put these in their own section "types"
 known_test = ["tests"]

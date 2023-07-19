@@ -6,20 +6,25 @@
 git clone https://github.com/automl-private/AutoRL-Landscape.git
 cd AutoRL-Landscape
 
-conda env create -f ma-kwie.yaml
-conda activate ma-kwie
+conda env create -f env-setup.yaml
+conda activate autorl-landscape
 pip install -e . # install the executable of this repository into the newly made environment
 ```
 
+### Additional dependency for Mujoco
+The environments require Mujoco which needs to be installed in addition to the python bindings.
+You can find installation info [here](https://github.com/openai/mujoco-py#install-mujoco).
+
 ### Additional dependency for `phases ana modalities ...`
 
-This test uses
-[python3-libfolding](https://github.com/asiffer/python3-libfolding), which is
-dependent on the `C++` libraries
-[libfolding](https://asiffer.github.io/libfolding/cpp) and
-[armadillo](https://gitlab.com/conradsnicta/armadillo-code). The former can be
-installed through `pip`, while the latter can be installed following the
-upstream instructions.
+The modality analysis uses `python3-libfolding`, which depends on the `C++` library
+[libfolding](https://asiffer.github.io/libfolding/cpp). This extra dependency
+may be installed from source.
+
+### Additional OpenGL dependency
+
+The environment does not provide an OpenGL header file. A workaround is to
+softlink the system installation as described in `env-setup.yaml`.
 
 ## Usage
 
@@ -33,17 +38,21 @@ access of the datasets through `phases dl`.
 Usage examples:
 
 ```bash
-# Reproduce the experiment from the thesis on the local machine:
-phases run combo=dqn_cartpole ls=sobol_2 slurm=local phases=100k num_confs=256 num_seeds=5 wandb.entity=entity_name wandb.project=project_name
+# Commands used to create the final datasets:
+phases run combo=dqn_cartpole ls=dqn slurm=local phases=150k    num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
+phases run combo=sac_hopper   ls=sac slurm=local phases=500k_4  num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
+phases run combo=ppo_walker   ls=ppo slurm=local phases=150k    num_confs=128 num_seeds=5 wandb.entity=entity_name wandb.project=project_name wandb.experiment_tag=experiment_tag
 
-# Download the data of an experiment to a single file into the data/entity_name directory:
-phases dl entity_name project_name
+# Download the data of an experiment to a single file into the data/ directory:
+phases dl entity_name project_name experiment_tag
 
-# Create visualizations, specifying to either construct an ILM ("rbf") or an IGPR ("triple-gp") model if a landscape model is required:
-phases ana maps --data=path/to/data.csv --model={rbf,triple-gp} [--grid-length=grid_length]
-phases ana graphs --data=path/to/data.csv --model={rbf,triple-gp}
-phases ana modalities --data=path/to/data.csv [--grid-length=grid_length]
-phases ana concavity --data=path/to/data.csv --model={rbf,triple-gp} [--grid-length=grid_length]
+# Create visualizations, specifying to either construct an ILM or an IGPR model if a landscape model is required:
+# You can also run `bash make_plots.sh ALGORITHM` with ALGORITHM either sac, dqn or ppo
+# --savefig saves the figures to disk to `figures/ALGORITHM/...
+phases ana maps data/ALGORITHM.csv {ilm,igpr}  --savefig
+phases ana graphs data/ALGORITHM.csv {ilm,igpr} --savefig
+phases ana modalities data/ALGORITHM.csv --savefig
+phases ana concavity data/ALGORITHM.csv {ilm,igpr}  --savefig
 ```
 
 ## Experiment Configuration
@@ -53,6 +62,7 @@ directory. `conf/config.yaml` is the root of the configuration tree. The differe
 exchangeable configurations for RL contexts (`conf/combo/`), the search space (`conf/ls/`), the
 phase configuration for the data collection (`conf/phases/`), and the SLURM cluster configuration
 (`conf/slurm/`).
+You can have a look at the slurm config files to configure your cluster and save it to `confs/slurm/yourconfig.yaml`. You then need to add  `slurm=yourconfig` to the commandline, as seen in the runcommands above. The slurm interface is managed by hydra, see [here](https://hydra.cc/docs/plugins/submitit_launcher/) for more information.
 
 ## Dataset Description
 
@@ -63,8 +73,7 @@ We provide the data collected as part of the experimental part of the thesis in
 |--------------- | --------------- |
 | ID (empty)                                      | unique `wandb` run id |
 | name                                            | unique `wandb` human readable run name |
-| ls.gamma                                        | discount factor |
-| ls.learning_rate                                | learning rate |
+| ls.*                                            | hyperparameters varied as part of the landscape analyis |
 | final_eval_i/ep_length_hist                     | eval episode length numpy histogram for ith final stage |
 | final_eval_i/ep_lengths                         | eval episode lengths for ith final stage |
 | final_eval_i/mean_ep_length                     | eval mean episode length for ith final stage |
@@ -74,7 +83,7 @@ We provide the data collected as part of the experimental part of the thesis in
 | ls_eval/*                                       | same information, but for the landscape stage |
 | meta.ancestor                                   | path to folder where snapshot of last phase's best policy is saved |
 | meta.conf_index                                 | index for this configuration (unique per phase) |
-| meta.phase                                      | phase of this run (starting with 0!) |
+| meta.phase                                      | phase of this run (starting with 1!) |
 | meta.seed                                       | RL algorithm seed of this run |
 | meta.timestamp                                  | timestamp of experiment start |
 
@@ -102,6 +111,3 @@ These further columns hold information about the experiment (all rows hold the s
 | conf.total_timesteps                            | time step for final stage |
 | conf.wandb.entity                               | `wandb` entity name |
 | conf.wandb.project                              | `wandb` project name|
-| ls.exploration_final_eps                        | final exploration rate |
-| ls.nn_length                                    | neural net length |
-| ls.nn_width                                     | neural net width |
